@@ -52,7 +52,7 @@ const state = {
     selectedTripItemId: null,
     editorOpen: false,
     settingsOpen: false,
-    showAllStoresCatalog: false,
+    showAllStoresCatalog: true,
   },
 };
 
@@ -97,7 +97,7 @@ function normalizeSavedCatalogItems(items = []) {
     isFavorite: Boolean(item.isFavorite),
     lastUpdated: item.lastUpdated || new Date().toISOString(),
     priceHistory: Array.isArray(item.priceHistory) ? item.priceHistory : [],
-    sourceMeta: item.sourceMeta || null,
+    sourceMeta: item.sourceMeta || { subcategory: item.subcategory || null },
   }));
 }
 
@@ -117,7 +117,7 @@ function loadSavedState() {
   };
   state.ui.currentStore = parsed.currentStore || state.settings.defaultStore || state.ui.currentStore;
   state.ui.activeView = parsed.activeView || 'list';
-  state.ui.showAllStoresCatalog = Boolean(parsed.showAllStoresCatalog);
+  state.ui.showAllStoresCatalog = parsed.showAllStoresCatalog === undefined ? true : Boolean(parsed.showAllStoresCatalog);
 }
 
 function money(value) {
@@ -304,8 +304,17 @@ function byStore(items) {
 }
 
 function categoriesForCatalog() {
-  const categories = [...new Set(state.catalogItems.map((item) => item.category).filter(Boolean))].sort();
+  const categories = [...new Set(byStore(state.catalogItems).map((item) => item.category).filter(Boolean))].sort();
   return ['All categories', ...categories];
+}
+
+function subcategoriesForCatalog(categoryFilter = 'All categories') {
+  const items = byStore(state.catalogItems).filter((item) => {
+    if (!categoryFilter || categoryFilter === 'All categories') return true;
+    return item.category === categoryFilter;
+  });
+  const subcategories = [...new Set(items.map((item) => item.sourceMeta?.subcategory || '').filter(Boolean))].sort();
+  return ['All subcategories', ...subcategories];
 }
 
 function applyTheme() {
@@ -542,19 +551,30 @@ function renderTripView() {
 
 function renderCatalogView() {
   const search = els.catalogSearch.value.trim().toLowerCase();
-  const categoryFilter = els.catalogCategoryFilter.value;
+  const previousCategory = els.catalogCategoryFilter.value;
+  const previousSubcategory = els.catalogSubcategoryFilter?.value || 'All subcategories';
   const categories = categoriesForCatalog();
+
   els.catalogCategoryFilter.innerHTML = categories.map((category) => `<option value="${category}">${category}</option>`).join('');
-  if (categoryFilter) els.catalogCategoryFilter.value = categoryFilter;
+  els.catalogCategoryFilter.value = categories.includes(previousCategory) ? previousCategory : 'All categories';
+
+  const subcategories = subcategoriesForCatalog(els.catalogCategoryFilter.value);
+  if (els.catalogSubcategoryFilter) {
+    els.catalogSubcategoryFilter.innerHTML = subcategories.map((subcategory) => `<option value="${subcategory}">${subcategory}</option>`).join('');
+    els.catalogSubcategoryFilter.value = subcategories.includes(previousSubcategory) ? previousSubcategory : 'All subcategories';
+  }
+
   if (els.catalogStoreModeBtn) {
     els.catalogStoreModeBtn.textContent = state.ui.showAllStoresCatalog ? 'Showing all stores' : `Showing ${getCurrentStore().name} only`;
   }
 
+  const selectedSubcategory = els.catalogSubcategoryFilter?.value || 'All subcategories';
   const visibleItems = byStore(state.catalogItems).filter((item) => {
-    const haystack = `${item.name} ${item.brand || ''} ${item.code} ${item.category}`.toLowerCase();
+    const haystack = `${item.name} ${item.brand || ''} ${item.code} ${item.category} ${item.sourceMeta?.subcategory || ''} ${(item.sourceMeta?.tags || []).join(' ')}`.toLowerCase();
     const matchesSearch = !search || haystack.includes(search);
     const matchesCategory = !els.catalogCategoryFilter.value || els.catalogCategoryFilter.value === 'All categories' || item.category === els.catalogCategoryFilter.value;
-    return matchesSearch && matchesCategory;
+    const matchesSubcategory = !selectedSubcategory || selectedSubcategory === 'All subcategories' || (item.sourceMeta?.subcategory || '') === selectedSubcategory;
+    return matchesSearch && matchesCategory && matchesSubcategory;
   });
 
   const hasItems = visibleItems.length > 0;
@@ -568,46 +588,35 @@ function renderCatalogView() {
 
   els.catalogTableBody.innerHTML = visibleItems.map((item) => {
     const stats = getPriceStats(item);
+    const subcategory = item.sourceMeta?.subcategory ? `<div class="muted-inline">${escapeHtml(item.sourceMeta.subcategory)}</div>` : '';
     return `
     <tr>
-      <td><span class="item-name"><span class="item-emoji" aria-hidden="true">${getItemEmoji(item)}</span><span><strong>${escapeHtml(item.name)}</strong><br><span class="muted-inline">${escapeHtml(item.brand || activeStoreBrand() || 'Store brand')}</span></span></span></td>
+      <td><span class="item-name"><span class="item-emoji" aria-hidden="true">${getItemEmoji(item)}</span><span><strong>${escapeHtml(item.name)}</strong><br><span class="muted-inline">${escapeHtml(item.brand || activeStoreBrand() || 'Store brand')}</span>${subcategory}</span></span></td>
       <td>${escapeHtml(item.code || '—')}</td>
       <td>${formatCategoryBadge(item.category)}</td>
-      <td><strong>${money(item.defaultPrice)}</strong><br><span class="muted-inline">Avg ${money(stats.avg)}</span></td>
+      <td><strong>${money(item.defaultPrice)}</strong><div class="muted-inline">${stats.count > 1 ? `${stats.count} price entries` : '1 price point'}</div></td>
       <td>${escapeHtml(storeNameById(item.storeId))}</td>
-      <td>
-        <div class="stack-row">
-          <button class="btn btn--primary" data-add-catalog-to-trip="${item.id}">Add to list</button>
-          <button class="btn btn--ghost" data-edit-catalog="${item.id}">Edit</button>
-        </div>
-      </td>
+      <td><div class="stack-row"><button class="btn btn--primary btn--sm" data-add-catalog-to-trip="${item.id}">Add to list</button><button class="btn btn--ghost btn--sm" data-edit-catalog="${item.id}">Edit</button></div></td>
     </tr>`;
   }).join('');
 
   els.catalogCardList.innerHTML = visibleItems.map((item) => {
     const stats = getPriceStats(item);
+    const subcategory = item.sourceMeta?.subcategory ? `<span>${escapeHtml(item.sourceMeta.subcategory)}</span>` : '';
     return `
-    <article class="card-item">
-      <div class="card-item__top">
-        <div>
-          <h3>${escapeHtml(formatItemLabel(item))}</h3>
-          <div class="card-meta">
-            ${formatCategoryBadge(item.category)}
-            <span>${escapeHtml(item.code || 'No code')}</span>
-            <span>${escapeHtml(item.brand || activeStoreBrand() || 'Store brand')}</span>
+      <article class="card-item">
+        <div class="card-item__top">
+          <div>
+            <h3><span class="item-name"><span class="item-emoji" aria-hidden="true">${getItemEmoji(item)}</span><span>${escapeHtml(item.name)}</span></span></h3>
+            <div class="card-meta">${formatCategoryBadge(item.category)}${subcategory}<span>${escapeHtml(item.code || 'No code')}</span><span>${escapeHtml(storeNameById(item.storeId))}</span></div>
           </div>
+          <strong>${money(item.defaultPrice)}</strong>
         </div>
-        <strong>${money(item.defaultPrice)}</strong>
-      </div>
-      <div class="card-item__bottom">
-        <span class="badge">${escapeHtml(storeNameById(item.storeId))}</span>
-        <span class="badge">Avg ${money(stats.avg)}</span>
-        <div class="stack-row">
-          <button class="btn btn--primary" data-add-catalog-to-trip="${item.id}">Add</button>
-          <button class="btn btn--ghost" data-edit-catalog="${item.id}">Edit</button>
+        <div class="card-item__bottom">
+          <div class="card-meta"><span>${escapeHtml(item.brand || activeStoreBrand() || 'Store brand')}</span><span>${stats.count > 1 ? `${stats.count} price entries` : '1 price point'}</span></div>
+          <div class="stack-row"><button class="btn btn--primary" data-add-catalog-to-trip="${item.id}">Add to list</button><button class="btn btn--ghost" data-edit-catalog="${item.id}">Edit</button></div>
         </div>
-      </div>
-    </article>`;
+      </article>`;
   }).join('');
 }
 
@@ -1366,6 +1375,7 @@ function bindEvents() {
 
   els.catalogSearch.addEventListener('input', renderCatalogView);
   els.catalogCategoryFilter.addEventListener('change', renderCatalogView);
+  if (els.catalogSubcategoryFilter) els.catalogSubcategoryFilter.addEventListener('change', renderCatalogView);
 
   els.parseReceiptBtn.addEventListener('click', () => {
     const text = els.receiptText.value.trim();
@@ -1531,6 +1541,7 @@ function cacheElements() {
     catalogSearch: document.getElementById('catalogSearch'),
     catalogStoreModeBtn: document.getElementById('catalogStoreModeBtn'),
     catalogCategoryFilter: document.getElementById('catalogCategoryFilter'),
+    catalogSubcategoryFilter: document.getElementById('catalogSubcategoryFilter'),
     catalogCategoryChips: document.getElementById('catalogCategoryChips'),
     catalogEmptyState: document.getElementById('catalogEmptyState'),
     catalogTableBody: document.getElementById('catalogTableBody'),

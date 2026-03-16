@@ -2072,3 +2072,17 @@ textarea,
   text-align: center;
   min-width: 160px;
 }
+
+
+/* Restore fuller library browsing */
+.toolbar {
+  align-items: end;
+}
+.toolbar .field {
+  min-width: 180px;
+}
+@media (max-width: 1023px) {
+  .toolbar .field {
+    min-width: 0;
+  }
+}
