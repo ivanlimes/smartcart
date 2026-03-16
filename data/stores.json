@@ -1,5 +1,0 @@
-[
-  { "id": "costco", "name": "Costco", "taxRate": 0.0925, "defaultBrand": "Kirkland Signature" },
-  { "id": "kroger", "name": "Kroger", "taxRate": 0.0925, "defaultBrand": "Simple Truth / Kroger" },
-  { "id": "walmart", "name": "Walmart", "taxRate": 0.0925, "defaultBrand": "Great Value / Marketside" }
-]
