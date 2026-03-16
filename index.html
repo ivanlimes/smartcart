@@ -4,9 +4,11 @@
   <meta charset="utf-8">
   <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
   <title>SmartCart</title>
-  <meta name="theme-color" content="#9fbf9f">
+  <meta name="theme-color" content="#f3f3f0">
   <link rel="stylesheet" href="styles.css">
   <link rel="icon" type="image/png" href="smartcart-icon.png">
+  <link rel="manifest" href="manifest.webmanifest">
+  <link rel="apple-touch-icon" href="smartcart-icon.png">
 </head>
 <body>
   <div id="app" class="app-shell" data-theme="system">
@@ -72,6 +74,25 @@
             <button id="clearTripBtn" class="btn btn--ghost">Clear trip</button>
           </div>
         </div>
+
+
+        <section class="panel quick-add-panel" aria-labelledby="quickAddHeading">
+          <div class="quick-add-panel__header">
+            <div>
+              <h3 id="quickAddHeading">Quick add from saved items</h3>
+              <p>Start typing from your current store catalog. Pick a match and the price fills itself in.</p>
+            </div>
+          </div>
+          <div class="quick-add-bar">
+            <label class="field field--grow">
+              <span>Find item</span>
+              <input id="listQuickSearch" class="input" type="search" placeholder="Type bananas, eggs, spinach, code, or brand" autocomplete="off">
+            </label>
+            <button id="listQuickAddFirstBtn" class="btn btn--primary" type="button">Add first match</button>
+          </div>
+          <div id="listQuickResultsMeta" class="muted-inline quick-add-meta">Showing items for the current store.</div>
+          <div id="listQuickResults" class="quick-add-results" aria-live="polite"></div>
+        </section>
 
         <div id="listEmptyState" class="empty-state" hidden>
           <h3>Your trip is empty</h3>
@@ -182,7 +203,7 @@
               <span>Paste receipt text</span>
               <textarea id="receiptText" class="input textarea" rows="10" placeholder="Paste copied receipt text here"></textarea>
             </label>
-            <div class="stack-row">
+            <div class="stack-row backup-actions-row">
               <button id="parseReceiptBtn" class="btn btn--primary">Parse receipt</button>
               <button id="clearImportBtn" class="btn btn--ghost">Clear import</button>
             </div>
@@ -234,7 +255,9 @@
       <input type="hidden" id="editorItemId">
       <label class="field">
         <span>Name</span>
-        <input id="editorName" class="input" type="text" required>
+        <input id="editorName" class="input" type="text" list="editorItemSuggestions" autocomplete="off" required>
+        <datalist id="editorItemSuggestions"></datalist>
+        <small id="editorAutocompleteHint" class="field-note">Tip: start typing a saved item from this store and SmartCart will fill the rest.</small>
       </label>
       <label class="field">
         <span>Code</span>
@@ -285,7 +308,7 @@
         </label>
         <label class="field">
           <span>Trip budget target</span>
-          <input id="settingsBudgetTarget" class="input" type="number" min="0" step="0.01" placeholder="Optional">
+          <div class="money-input-wrap"><span class="money-input-prefix" aria-hidden="true">$</span><input id="settingsBudgetTarget" class="input money-input" type="text" inputmode="decimal" placeholder="0.00"></div>
         </label>
         <label class="field">
           <span>Theme</span>
@@ -300,7 +323,7 @@
           <p class="help-text">Export your local data to JSON or restore from a previous backup file.</p>
           <div class="stack-row">
             <button id="exportBackupBtn" class="btn btn--secondary" type="button">Export backup</button>
-            <label class="btn btn--ghost file-btn">
+            <label class="btn btn--ghost file-btn import-backup-btn">
               Import backup
               <input id="importBackupInput" type="file" accept="application/json" hidden>
             </label>

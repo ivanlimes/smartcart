@@ -371,6 +371,114 @@ function renderSummary() {
   }
 }
 
+
+function currentStoreCatalogItems() {
+  return state.catalogItems.filter((item) => !item.storeId || item.storeId === state.ui.currentStore);
+}
+
+function matchCatalogItems(query = '', limit = 8) {
+  const safe = String(query || '').trim().toLowerCase();
+  const items = currentStoreCatalogItems();
+  if (!safe) {
+    return items
+      .slice()
+      .sort((a, b) => Number(Boolean(b.isFavorite)) - Number(Boolean(a.isFavorite)) || a.name.localeCompare(b.name))
+      .slice(0, limit);
+  }
+
+  return items
+    .map((item) => {
+      const name = String(item.name || '').toLowerCase();
+      const brand = String(item.brand || '').toLowerCase();
+      const code = String(item.code || '').toLowerCase();
+      const category = String(item.category || '').toLowerCase();
+      let score = 0;
+      if (name === safe || code === safe) score += 100;
+      if (name.startsWith(safe)) score += 70;
+      if (brand.startsWith(safe)) score += 45;
+      if (code.startsWith(safe)) score += 60;
+      if (name.includes(safe)) score += 40;
+      if (brand.includes(safe)) score += 24;
+      if (category.includes(safe)) score += 18;
+      if (code.includes(safe)) score += 30;
+      if (item.isFavorite) score += 8;
+      return { item, score };
+    })
+    .filter((entry) => entry.score > 0)
+    .sort((a, b) => b.score - a.score || a.item.name.localeCompare(b.item.name))
+    .slice(0, limit)
+    .map((entry) => entry.item);
+}
+
+function findCatalogItemForInput(value = '') {
+  const safe = String(value || '').trim();
+  if (!safe) return null;
+  const normalized = slugify(safe);
+  return currentStoreCatalogItems().find((item) =>
+    String(item.code || '') === safe ||
+    slugify(item.name) === normalized ||
+    slugify(`${item.name} ${item.code || ''}`) === normalized ||
+    slugify(`${item.name} ${item.brand || ''}`) === normalized
+  ) || matchCatalogItems(safe, 1)[0] || null;
+}
+
+function fillTripEditorFromCatalogItem(item) {
+  if (!item) return;
+  els.editorName.value = item.name || '';
+  els.editorCode.value = item.code || '';
+  els.editorCategory.value = item.category || '';
+  els.editorPrice.value = number(item.defaultPrice, 0).toFixed(2);
+  if (!els.editorQty.value || Number(els.editorQty.value) < 1) {
+    els.editorQty.value = 1;
+  }
+}
+
+function renderEditorSuggestions(query = '') {
+  if (!els.editorItemSuggestions) return;
+  const suggestions = matchCatalogItems(query, 12);
+  els.editorItemSuggestions.innerHTML = suggestions.map((item) => {
+    const value = escapeHtmlAttr(item.name || '');
+    const label = `${escapeHtmlAttr(item.name || '')} • ${escapeHtmlAttr(item.code || 'No code')} • ${money(item.defaultPrice)}`;
+    return `<option value="${value}" label="${label}"></option>`;
+  }).join('');
+}
+
+function renderQuickAdd() {
+  if (!els.listQuickResults) return;
+  const query = els.listQuickSearch?.value || '';
+  const matches = matchCatalogItems(query, query.trim() ? 10 : 6);
+  const storeName = getCurrentStore()?.name || 'Current store';
+
+  if (els.listQuickResultsMeta) {
+    els.listQuickResultsMeta.textContent = query.trim()
+      ? `${matches.length} match${matches.length === 1 ? '' : 'es'} in ${storeName}.`
+      : `Popular saved items for ${storeName}.`;
+  }
+
+  if (!matches.length) {
+    els.listQuickResults.innerHTML = '<div class="empty-state empty-state--compact"><strong>No matches yet.</strong><p>Keep typing, or use Add item to create something new.</p></div>';
+    return;
+  }
+
+  els.listQuickResults.innerHTML = matches.map((item) => `
+    <button type="button" class="quick-add-card" data-quick-add-catalog="${item.id}">
+      <span class="quick-add-card__top">
+        <span class="item-name">
+          <span class="item-emoji" aria-hidden="true">${getItemEmoji(item)}</span>
+          <span class="quick-add-card__name-wrap">
+            <strong>${escapeHtml(item.name)}</strong>
+          </span>
+        </span>
+        <strong>${money(item.defaultPrice)}</strong>
+      </span>
+      <span class="quick-add-card__bottom">
+        ${formatCategoryBadge(item.category)}
+        <span class="muted-inline">${escapeHtml(item.code || 'No code')}</span>
+      </span>
+    </button>
+  `).join('');
+}
+
 function renderTripView() {
   const hasItems = state.tripItems.length > 0;
   els.listEmptyState.hidden = hasItems;
@@ -536,7 +644,7 @@ function renderSettings() {
   els.settingsDefaultStore.value = state.settings.defaultStore;
   els.settingsTheme.value = state.settings.theme;
   els.settingsTaxOverride.value = state.settings.taxRateOverride ?? '';
-  if (els.settingsBudgetTarget) els.settingsBudgetTarget.value = state.settings.budgetTarget ?? '';
+  if (els.settingsBudgetTarget) els.settingsBudgetTarget.value = state.settings.budgetTarget === null || state.settings.budgetTarget === undefined ? '' : number(state.settings.budgetTarget, 0).toFixed(2);
 }
 
 function renderSavedTrips() {
@@ -555,6 +663,8 @@ function renderAll() {
   renderImportView();
   renderSettings();
   renderSavedTrips();
+  renderQuickAdd();
+  renderEditorSuggestions(els.editorName?.value || '');
   applyTheme();
   setActiveView(state.ui.activeView);
 }
@@ -614,6 +724,10 @@ function openEditor(type, item = null) {
   els.editorPrice.value = (isTrip ? item?.price : item?.defaultPrice) ?? 0;
   els.editorFavorite.checked = Boolean(item?.isFavorite);
   els.deleteEditorItemBtn.hidden = !item;
+
+  if (isTrip) {
+    renderEditorSuggestions(item?.name || '');
+  }
 
   focusFirstIn(els.editorPanel);
 }
@@ -1167,6 +1281,17 @@ function bindEvents() {
       return;
     }
 
+    const quickAddBtn = event.target.closest('[data-quick-add-catalog]');
+    if (quickAddBtn) {
+      addCatalogItemToTrip(quickAddBtn.dataset.quickAddCatalog);
+      if (els.listQuickSearch) {
+        els.listQuickSearch.value = '';
+        renderQuickAdd();
+        els.listQuickSearch.focus();
+      }
+      return;
+    }
+
     const duplicateBtn = event.target.closest('[data-duplicate-trip]');
     if (duplicateBtn) {
       duplicateTripItem(duplicateBtn.dataset.duplicateTrip);
@@ -1287,7 +1412,7 @@ function bindEvents() {
     state.settings.defaultStore = els.settingsDefaultStore.value;
     state.settings.theme = els.settingsTheme.value;
     state.settings.taxRateOverride = els.settingsTaxOverride.value === '' ? null : number(els.settingsTaxOverride.value, 0);
-    state.settings.budgetTarget = els.settingsBudgetTarget && els.settingsBudgetTarget.value !== '' ? number(els.settingsBudgetTarget.value, 0) : null;
+    state.settings.budgetTarget = els.settingsBudgetTarget && String(els.settingsBudgetTarget.value).trim() !== '' ? number(String(els.settingsBudgetTarget.value).replace(/[$,\s]/g, ''), 0) : null;
     if (!state.ui.currentStore) state.ui.currentStore = state.settings.defaultStore;
     saveState();
     renderAll();
@@ -1301,6 +1426,24 @@ function bindEvents() {
     if (file) importBackup(file);
     els.importBackupInput.value = '';
   });
+
+  if (els.settingsBudgetTarget) {
+    els.settingsBudgetTarget.addEventListener('blur', () => {
+      const raw = String(els.settingsBudgetTarget.value || '').replace(/[$,\s]/g, '');
+      if (!raw) {
+        els.settingsBudgetTarget.value = '';
+        return;
+      }
+      const parsed = number(raw, 0);
+      els.settingsBudgetTarget.value = parsed.toFixed(2);
+    });
+
+    els.settingsBudgetTarget.addEventListener('focus', () => {
+      const raw = String(els.settingsBudgetTarget.value || '').replace(/[$,\s]/g, '');
+      els.settingsBudgetTarget.value = raw;
+    });
+  }
+
   els.clearAllDataBtn.addEventListener('click', clearAllData);
 
   document.addEventListener('keydown', (event) => {
@@ -1309,6 +1452,62 @@ function bindEvents() {
       if (state.ui.settingsOpen) closeSettings();
     }
   });
+
+  if (els.listQuickSearch) {
+    els.listQuickSearch.addEventListener('input', () => {
+      renderQuickAdd();
+    });
+
+    els.listQuickSearch.addEventListener('keydown', (event) => {
+      if (event.key === 'Enter') {
+        event.preventDefault();
+        const first = matchCatalogItems(els.listQuickSearch.value, 1)[0];
+        if (first) {
+          addCatalogItemToTrip(first.id);
+          els.listQuickSearch.value = '';
+          renderQuickAdd();
+        }
+      }
+    });
+  }
+
+  if (els.listQuickAddFirstBtn) {
+    els.listQuickAddFirstBtn.addEventListener('click', () => {
+      const first = matchCatalogItems(els.listQuickSearch?.value || '', 1)[0];
+      if (!first) {
+        toast('No matching saved item yet');
+        return;
+      }
+      addCatalogItemToTrip(first.id);
+      if (els.listQuickSearch) {
+        els.listQuickSearch.value = '';
+        renderQuickAdd();
+        els.listQuickSearch.focus();
+      }
+    });
+  }
+
+  if (els.editorName) {
+    els.editorName.addEventListener('input', () => {
+      renderEditorSuggestions(els.editorName.value);
+    });
+
+    els.editorName.addEventListener('change', () => {
+      const match = findCatalogItemForInput(els.editorName.value);
+      if (match && (slugify(match.name) === slugify(els.editorName.value) || String(match.code || '') === String(els.editorName.value).trim() || matchCatalogItems(els.editorName.value, 1)[0]?.id === match.id)) {
+        fillTripEditorFromCatalogItem(match);
+      }
+    });
+
+    els.editorName.addEventListener('keydown', (event) => {
+      if (event.key === 'Enter' && els.editorEntityType?.value === 'trip') {
+        const match = matchCatalogItems(els.editorName.value, 1)[0];
+        if (match && !els.editorCode.value && !els.editorCategory.value && Number(els.editorPrice.value || 0) === 0) {
+          fillTripEditorFromCatalogItem(match);
+        }
+      }
+    });
+  }
 }
 
 function cacheElements() {
@@ -1322,6 +1521,10 @@ function cacheElements() {
     saveTripTemplateBtn: document.getElementById('saveTripTemplateBtn'),
     savedTripList: document.getElementById('savedTripList'),
     listEmptyState: document.getElementById('listEmptyState'),
+    listQuickSearch: document.getElementById('listQuickSearch'),
+    listQuickAddFirstBtn: document.getElementById('listQuickAddFirstBtn'),
+    listQuickResults: document.getElementById('listQuickResults'),
+    listQuickResultsMeta: document.getElementById('listQuickResultsMeta'),
     tripTableWrap: document.getElementById('tripTableWrap'),
     tripTableBody: document.getElementById('tripTableBody'),
     tripCardList: document.getElementById('tripCardList'),
@@ -1349,6 +1552,8 @@ function cacheElements() {
     editorEntityType: document.getElementById('editorEntityType'),
     editorItemId: document.getElementById('editorItemId'),
     editorName: document.getElementById('editorName'),
+    editorItemSuggestions: document.getElementById('editorItemSuggestions'),
+    editorAutocompleteHint: document.getElementById('editorAutocompleteHint'),
     editorCode: document.getElementById('editorCode'),
     editorCategory: document.getElementById('editorCategory'),
     editorQtyField: document.getElementById('editorQtyField'),
