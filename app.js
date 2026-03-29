@@ -1,5 +1,6 @@
 const STORAGE_KEYS = {
-  state: 'grocerlist-state-v3',
+  state: 'smartcart-state-v4',
+  legacyState: 'grocerlist-state-v3',
 };
 
 const FALLBACK_STORES = [
@@ -52,7 +53,7 @@ const state = {
     selectedTripItemId: null,
     editorOpen: false,
     settingsOpen: false,
-    showAllStoresCatalog: true,
+    showAllStoresCatalog: false,
   },
 };
 
@@ -97,17 +98,48 @@ function normalizeSavedCatalogItems(items = []) {
     isFavorite: Boolean(item.isFavorite),
     lastUpdated: item.lastUpdated || new Date().toISOString(),
     priceHistory: Array.isArray(item.priceHistory) ? item.priceHistory : [],
-    sourceMeta: item.sourceMeta || { subcategory: item.subcategory || null },
+    sourceMeta: item.sourceMeta || null,
   }));
 }
 
 function loadSavedState() {
-  const raw = localStorage.getItem(STORAGE_KEYS.state);
+  const raw = localStorage.getItem(STORAGE_KEYS.state) || localStorage.getItem(STORAGE_KEYS.legacyState);
   if (!raw) return;
   const parsed = safeJsonParse(raw, null);
   if (!parsed || typeof parsed !== 'object') return;
 
-  state.catalogItems = Array.isArray(parsed.catalogItems) ? normalizeSavedCatalogItems(parsed.catalogItems) : state.catalogItems;
+  if (Array.isArray(parsed.catalogItems)) {
+    const savedCatalogItems = normalizeSavedCatalogItems(parsed.catalogItems);
+    const mergedCatalog = normalizeSavedCatalogItems(state.catalogItems);
+
+    for (const savedItem of savedCatalogItems) {
+      const matchIndex = mergedCatalog.findIndex((seedItem) => {
+        const sameStore = (seedItem.storeId || 'costco') === (savedItem.storeId || 'costco');
+        const sameCode = seedItem.code && savedItem.code && String(seedItem.code) === String(savedItem.code);
+        const sameName = slugify(seedItem.name) === slugify(savedItem.name);
+        return sameStore && (sameCode || sameName);
+      });
+
+      if (matchIndex >= 0) {
+        mergedCatalog[matchIndex] = {
+          ...mergedCatalog[matchIndex],
+          ...savedItem,
+          sourceMeta: {
+            ...(mergedCatalog[matchIndex].sourceMeta || {}),
+            ...(savedItem.sourceMeta || {}),
+          },
+          priceHistory: Array.isArray(savedItem.priceHistory) && savedItem.priceHistory.length
+            ? savedItem.priceHistory
+            : mergedCatalog[matchIndex].priceHistory,
+        };
+      } else {
+        mergedCatalog.push(savedItem);
+      }
+    }
+
+    state.catalogItems = mergedCatalog;
+  }
+
   state.tripItems = Array.isArray(parsed.tripItems) ? parsed.tripItems : [];
   state.importItems = Array.isArray(parsed.importItems) ? parsed.importItems : [];
   state.savedTrips = Array.isArray(parsed.savedTrips) ? parsed.savedTrips : [];
@@ -117,7 +149,7 @@ function loadSavedState() {
   };
   state.ui.currentStore = parsed.currentStore || state.settings.defaultStore || state.ui.currentStore;
   state.ui.activeView = parsed.activeView || 'list';
-  state.ui.showAllStoresCatalog = parsed.showAllStoresCatalog === undefined ? true : Boolean(parsed.showAllStoresCatalog);
+  state.ui.showAllStoresCatalog = Boolean(parsed.showAllStoresCatalog);
 }
 
 function money(value) {
@@ -304,17 +336,8 @@ function byStore(items) {
 }
 
 function categoriesForCatalog() {
-  const categories = [...new Set(byStore(state.catalogItems).map((item) => item.category).filter(Boolean))].sort();
+  const categories = [...new Set(state.catalogItems.map((item) => item.category).filter(Boolean))].sort();
   return ['All categories', ...categories];
-}
-
-function subcategoriesForCatalog(categoryFilter = 'All categories') {
-  const items = byStore(state.catalogItems).filter((item) => {
-    if (!categoryFilter || categoryFilter === 'All categories') return true;
-    return item.category === categoryFilter;
-  });
-  const subcategories = [...new Set(items.map((item) => item.sourceMeta?.subcategory || '').filter(Boolean))].sort();
-  return ['All subcategories', ...subcategories];
 }
 
 function applyTheme() {
@@ -334,10 +357,15 @@ function applyTheme() {
 
   bodyRoot?.classList.toggle('theme-dark', resolvedTheme === 'dark');
   bodyRoot?.classList.toggle('theme-light', resolvedTheme === 'light');
+
+  if (els.themeColorMeta) {
+    els.themeColorMeta.setAttribute('content', resolvedTheme === 'dark' ? '#15202d' : '#78a9d6');
+  }
 }
 
 function setActiveView(viewName) {
   state.ui.activeView = viewName;
+  document.body.dataset.activeView = viewName;
   document.querySelectorAll('.view').forEach((view) => {
     view.classList.toggle('is-active', view.id === `${viewName}View`);
   });
@@ -476,6 +504,7 @@ function renderQuickAdd() {
           <span class="item-emoji" aria-hidden="true">${getItemEmoji(item)}</span>
           <span class="quick-add-card__name-wrap">
             <strong>${escapeHtml(item.name)}</strong>
+            <span class="muted-inline">${escapeHtml(item.brand || activeStoreBrand() || 'Store brand')}</span>
           </span>
         </span>
         <strong>${money(item.defaultPrice)}</strong>
@@ -551,30 +580,19 @@ function renderTripView() {
 
 function renderCatalogView() {
   const search = els.catalogSearch.value.trim().toLowerCase();
-  const previousCategory = els.catalogCategoryFilter.value;
-  const previousSubcategory = els.catalogSubcategoryFilter?.value || 'All subcategories';
+  const categoryFilter = els.catalogCategoryFilter.value;
   const categories = categoriesForCatalog();
-
   els.catalogCategoryFilter.innerHTML = categories.map((category) => `<option value="${category}">${category}</option>`).join('');
-  els.catalogCategoryFilter.value = categories.includes(previousCategory) ? previousCategory : 'All categories';
-
-  const subcategories = subcategoriesForCatalog(els.catalogCategoryFilter.value);
-  if (els.catalogSubcategoryFilter) {
-    els.catalogSubcategoryFilter.innerHTML = subcategories.map((subcategory) => `<option value="${subcategory}">${subcategory}</option>`).join('');
-    els.catalogSubcategoryFilter.value = subcategories.includes(previousSubcategory) ? previousSubcategory : 'All subcategories';
-  }
-
+  if (categoryFilter) els.catalogCategoryFilter.value = categoryFilter;
   if (els.catalogStoreModeBtn) {
     els.catalogStoreModeBtn.textContent = state.ui.showAllStoresCatalog ? 'Showing all stores' : `Showing ${getCurrentStore().name} only`;
   }
 
-  const selectedSubcategory = els.catalogSubcategoryFilter?.value || 'All subcategories';
   const visibleItems = byStore(state.catalogItems).filter((item) => {
-    const haystack = `${item.name} ${item.brand || ''} ${item.code} ${item.category} ${item.sourceMeta?.subcategory || ''} ${(item.sourceMeta?.tags || []).join(' ')}`.toLowerCase();
+    const haystack = `${item.name} ${item.brand || ''} ${item.code} ${item.category}`.toLowerCase();
     const matchesSearch = !search || haystack.includes(search);
     const matchesCategory = !els.catalogCategoryFilter.value || els.catalogCategoryFilter.value === 'All categories' || item.category === els.catalogCategoryFilter.value;
-    const matchesSubcategory = !selectedSubcategory || selectedSubcategory === 'All subcategories' || (item.sourceMeta?.subcategory || '') === selectedSubcategory;
-    return matchesSearch && matchesCategory && matchesSubcategory;
+    return matchesSearch && matchesCategory;
   });
 
   const hasItems = visibleItems.length > 0;
@@ -588,35 +606,46 @@ function renderCatalogView() {
 
   els.catalogTableBody.innerHTML = visibleItems.map((item) => {
     const stats = getPriceStats(item);
-    const subcategory = item.sourceMeta?.subcategory ? `<div class="muted-inline">${escapeHtml(item.sourceMeta.subcategory)}</div>` : '';
     return `
     <tr>
-      <td><span class="item-name"><span class="item-emoji" aria-hidden="true">${getItemEmoji(item)}</span><span><strong>${escapeHtml(item.name)}</strong><br><span class="muted-inline">${escapeHtml(item.brand || activeStoreBrand() || 'Store brand')}</span>${subcategory}</span></span></td>
+      <td><span class="item-name"><span class="item-emoji" aria-hidden="true">${getItemEmoji(item)}</span><span><strong>${escapeHtml(item.name)}</strong><br><span class="muted-inline">${escapeHtml(item.brand || activeStoreBrand() || 'Store brand')}</span></span></span></td>
       <td>${escapeHtml(item.code || '—')}</td>
       <td>${formatCategoryBadge(item.category)}</td>
-      <td><strong>${money(item.defaultPrice)}</strong><div class="muted-inline">${stats.count > 1 ? `${stats.count} price entries` : '1 price point'}</div></td>
+      <td><strong>${money(item.defaultPrice)}</strong><br><span class="muted-inline">Avg ${money(stats.avg)}</span></td>
       <td>${escapeHtml(storeNameById(item.storeId))}</td>
-      <td><div class="stack-row"><button class="btn btn--primary btn--sm" data-add-catalog-to-trip="${item.id}">Add to list</button><button class="btn btn--ghost btn--sm" data-edit-catalog="${item.id}">Edit</button></div></td>
+      <td>
+        <div class="stack-row">
+          <button class="btn btn--primary" data-add-catalog-to-trip="${item.id}">Add to list</button>
+          <button class="btn btn--ghost" data-edit-catalog="${item.id}">Edit</button>
+        </div>
+      </td>
     </tr>`;
   }).join('');
 
   els.catalogCardList.innerHTML = visibleItems.map((item) => {
     const stats = getPriceStats(item);
-    const subcategory = item.sourceMeta?.subcategory ? `<span>${escapeHtml(item.sourceMeta.subcategory)}</span>` : '';
     return `
-      <article class="card-item">
-        <div class="card-item__top">
-          <div>
-            <h3><span class="item-name"><span class="item-emoji" aria-hidden="true">${getItemEmoji(item)}</span><span>${escapeHtml(item.name)}</span></span></h3>
-            <div class="card-meta">${formatCategoryBadge(item.category)}${subcategory}<span>${escapeHtml(item.code || 'No code')}</span><span>${escapeHtml(storeNameById(item.storeId))}</span></div>
+    <article class="card-item">
+      <div class="card-item__top">
+        <div>
+          <h3>${escapeHtml(formatItemLabel(item))}</h3>
+          <div class="card-meta">
+            ${formatCategoryBadge(item.category)}
+            <span>${escapeHtml(item.code || 'No code')}</span>
+            <span>${escapeHtml(item.brand || activeStoreBrand() || 'Store brand')}</span>
           </div>
-          <strong>${money(item.defaultPrice)}</strong>
         </div>
-        <div class="card-item__bottom">
-          <div class="card-meta"><span>${escapeHtml(item.brand || activeStoreBrand() || 'Store brand')}</span><span>${stats.count > 1 ? `${stats.count} price entries` : '1 price point'}</span></div>
-          <div class="stack-row"><button class="btn btn--primary" data-add-catalog-to-trip="${item.id}">Add to list</button><button class="btn btn--ghost" data-edit-catalog="${item.id}">Edit</button></div>
+        <strong>${money(item.defaultPrice)}</strong>
+      </div>
+      <div class="card-item__bottom">
+        <span class="badge">${escapeHtml(storeNameById(item.storeId))}</span>
+        <span class="badge">Avg ${money(stats.avg)}</span>
+        <div class="stack-row">
+          <button class="btn btn--primary" data-add-catalog-to-trip="${item.id}">Add</button>
+          <button class="btn btn--ghost" data-edit-catalog="${item.id}">Edit</button>
         </div>
-      </article>`;
+      </div>
+    </article>`;
   }).join('');
 }
 
@@ -653,7 +682,7 @@ function renderSettings() {
   els.settingsDefaultStore.value = state.settings.defaultStore;
   els.settingsTheme.value = state.settings.theme;
   els.settingsTaxOverride.value = state.settings.taxRateOverride ?? '';
-  if (els.settingsBudgetTarget) els.settingsBudgetTarget.value = state.settings.budgetTarget === null || state.settings.budgetTarget === undefined ? '' : number(state.settings.budgetTarget, 0).toFixed(2);
+  if (els.settingsBudgetTarget) els.settingsBudgetTarget.value = state.settings.budgetTarget ?? '';
 }
 
 function renderSavedTrips() {
@@ -843,6 +872,8 @@ function deleteEditorItem() {
   const type = els.editorEntityType.value;
   const id = els.editorItemId.value;
   if (!id) return;
+  const label = type === 'catalog' ? 'saved catalog item' : 'trip item';
+  if (!window.confirm(`Delete this ${label}?`)) return;
   if (type === 'trip') {
     state.tripItems = state.tripItems.filter((item) => item.id !== id);
     if (state.ui.selectedTripItemId === id) state.ui.selectedTripItemId = null;
@@ -961,26 +992,59 @@ function deleteTripTemplate(templateId) {
 }
 
 function parseReceiptText(text) {
-  const lines = text.split(/\r?\n/).map((line) => line.trim()).filter(Boolean);
+  const lines = text
+    .split(/\r?\n/)
+    .map((line) => line.replace(/\s+/g, ' ').trim())
+    .filter(Boolean);
+
+  const skipPattern = /(subtotal|sub total|total|tax|change|cash|visa|mastercard|debit|balance|savings|member savings|thank you|welcome|items sold|approved|auth|transaction|tender|payment|sale|coupon)/i;
   const result = [];
+
   for (const line of lines) {
-    const match = line.match(/^(\d{4,10})\s+(.+?)\s+(-?\d+\.\d{2})$/);
-    if (!match) continue;
-    const [, code, guessedName, guessedPrice] = match;
-    if (Number(guessedPrice) < 0) continue;
+    if (skipPattern.test(line)) continue;
+
+    const priceMatch = line.match(/(-?\$?\d+\.\d{2})(?!.*\d+\.\d{2})/);
+    if (!priceMatch) continue;
+
+    const guessedPrice = Number(String(priceMatch[1]).replace(/[$,]/g, ''));
+    if (!Number.isFinite(guessedPrice) || guessedPrice < 0) continue;
+
+    let working = line.replace(priceMatch[0], '').trim();
+    let guessedCode = '';
+
+    const leadingCode = working.match(/^(\d{4,10})\s+(.*)$/);
+    if (leadingCode) {
+      guessedCode = leadingCode[1];
+      working = leadingCode[2].trim();
+    } else {
+      const trailingCode = working.match(/^(.*?)\s+(\d{4,10})$/);
+      if (trailingCode) {
+        working = trailingCode[1].trim();
+        guessedCode = trailingCode[2];
+      }
+    }
+
+    const guessedName = working
+      .replace(/\b(?:qty|x)\s*\d+$/i, '')
+      .replace(/\s{2,}/g, ' ')
+      .trim();
+
+    if (!guessedName || /^\d+$/.test(guessedName)) continue;
+
     result.push({
       id: uid('imp'),
       rawText: line,
       guessedName: titleCase(guessedName),
-      guessedCode: code,
-      guessedPrice: Number(guessedPrice),
+      guessedCode,
+      guessedPrice,
       correctedName: titleCase(guessedName),
-      correctedCode: code,
-      correctedPrice: Number(guessedPrice),
+      correctedCode: guessedCode,
+      correctedPrice: guessedPrice,
       addToCatalog: true,
       addToList: false,
     });
   }
+
   return result;
 }
 
@@ -996,6 +1060,7 @@ function confirmImport() {
     toast('Nothing selected for import');
     return;
   }
+  let addedToList = false;
   chosen.forEach((item) => {
     const payload = {
       name: item.correctedName || item.guessedName,
@@ -1021,13 +1086,14 @@ function confirmImport() {
     }
     if (item.addToList) {
       state.tripItems.unshift(createTripItem({ ...payload, catalogItemId: catalogMatch?.id || null }));
+      addedToList = true;
     }
   });
   state.importItems = [];
   els.receiptText.value = '';
   saveState();
   renderAll();
-  setActiveView('catalog');
+  setActiveView(addedToList ? 'list' : 'catalog');
   toast('Import complete');
 }
 
@@ -1068,7 +1134,7 @@ function exportBackup() {
       showAllStoresCatalog: state.ui.showAllStoresCatalog,
     },
   };
-  downloadFile('grocerlist-backup.json', JSON.stringify(payload, null, 2), 'application/json');
+  downloadFile('smartcart-backup.json', JSON.stringify(payload, null, 2), 'application/json');
 }
 
 function importBackup(file) {
@@ -1101,12 +1167,14 @@ function clearAllData() {
   const confirmed = window.confirm('Clear all local app data from this browser?');
   if (!confirmed) return;
   localStorage.removeItem(STORAGE_KEYS.state);
+  localStorage.removeItem(STORAGE_KEYS.legacyState);
+  const defaultStoreId = seedData.stores?.[0]?.id || 'costco';
   state.catalogItems = normalizeSavedCatalogItems(seedData.catalogItems);
   state.tripItems = [];
   state.importItems = [];
   state.savedTrips = [];
-  state.settings = { defaultStore: 'costco', theme: 'system', taxRateOverride: null, budgetTarget: null };
-  state.ui.currentStore = 'costco';
+  state.settings = { defaultStore: defaultStoreId, theme: 'system', taxRateOverride: null, budgetTarget: null };
+  state.ui.currentStore = defaultStoreId;
   state.ui.activeView = 'list';
   state.ui.showAllStoresCatalog = false;
   saveState();
@@ -1375,7 +1443,6 @@ function bindEvents() {
 
   els.catalogSearch.addEventListener('input', renderCatalogView);
   els.catalogCategoryFilter.addEventListener('change', renderCatalogView);
-  if (els.catalogSubcategoryFilter) els.catalogSubcategoryFilter.addEventListener('change', renderCatalogView);
 
   els.parseReceiptBtn.addEventListener('click', () => {
     const text = els.receiptText.value.trim();
@@ -1422,7 +1489,7 @@ function bindEvents() {
     state.settings.defaultStore = els.settingsDefaultStore.value;
     state.settings.theme = els.settingsTheme.value;
     state.settings.taxRateOverride = els.settingsTaxOverride.value === '' ? null : number(els.settingsTaxOverride.value, 0);
-    state.settings.budgetTarget = els.settingsBudgetTarget && String(els.settingsBudgetTarget.value).trim() !== '' ? number(String(els.settingsBudgetTarget.value).replace(/[$,\s]/g, ''), 0) : null;
+    state.settings.budgetTarget = els.settingsBudgetTarget && els.settingsBudgetTarget.value !== '' ? number(els.settingsBudgetTarget.value, 0) : null;
     if (!state.ui.currentStore) state.ui.currentStore = state.settings.defaultStore;
     saveState();
     renderAll();
@@ -1436,24 +1503,6 @@ function bindEvents() {
     if (file) importBackup(file);
     els.importBackupInput.value = '';
   });
-
-  if (els.settingsBudgetTarget) {
-    els.settingsBudgetTarget.addEventListener('blur', () => {
-      const raw = String(els.settingsBudgetTarget.value || '').replace(/[$,\s]/g, '');
-      if (!raw) {
-        els.settingsBudgetTarget.value = '';
-        return;
-      }
-      const parsed = number(raw, 0);
-      els.settingsBudgetTarget.value = parsed.toFixed(2);
-    });
-
-    els.settingsBudgetTarget.addEventListener('focus', () => {
-      const raw = String(els.settingsBudgetTarget.value || '').replace(/[$,\s]/g, '');
-      els.settingsBudgetTarget.value = raw;
-    });
-  }
-
   els.clearAllDataBtn.addEventListener('click', clearAllData);
 
   document.addEventListener('keydown', (event) => {
@@ -1541,7 +1590,6 @@ function cacheElements() {
     catalogSearch: document.getElementById('catalogSearch'),
     catalogStoreModeBtn: document.getElementById('catalogStoreModeBtn'),
     catalogCategoryFilter: document.getElementById('catalogCategoryFilter'),
-    catalogSubcategoryFilter: document.getElementById('catalogSubcategoryFilter'),
     catalogCategoryChips: document.getElementById('catalogCategoryChips'),
     catalogEmptyState: document.getElementById('catalogEmptyState'),
     catalogTableBody: document.getElementById('catalogTableBody'),
@@ -1595,14 +1643,16 @@ function cacheElements() {
     clearTripBtn: document.getElementById('clearTripBtn'),
     saveSelectedTripToCatalogBtn: document.getElementById('saveSelectedTripToCatalogBtn'),
     toastArea: document.getElementById('toastArea'),
+    themeColorMeta: document.getElementById('themeColorMeta'),
   });
 }
 
 async function bootstrap() {
   cacheElements();
+  const inlineStarterCatalog = window.SMARTCART_STARTER_CATALOG || FALLBACK_CATALOG;
   const [stores, rawCatalog] = await Promise.all([
     loadJson('./data/stores.json', FALLBACK_STORES),
-    loadJson('./data/starter-catalog.json', FALLBACK_CATALOG),
+    loadJson('./data/starter-catalog.json', inlineStarterCatalog),
   ]);
   state.stores = Array.isArray(stores) ? stores : FALLBACK_STORES;
   state.catalogItems = normalizeStarterCatalog(rawCatalog);

@@ -1,19 +1,20 @@
 {
   "name": "SmartCart",
   "short_name": "SmartCart",
+  "description": "Local-first grocery planner for reusable lists, store-aware prices, and trip estimates.",
   "start_url": "./",
   "display": "standalone",
-  "background_color": "#f3f3f0",
-  "theme_color": "#f3f3f0",
+  "background_color": "#f7f4ee",
+  "theme_color": "#78a9d6",
   "icons": [
     {
-      "src": "smartcart-icon.png",
-      "sizes": "512x512",
+      "src": "assets/icons/icon-192.png",
+      "sizes": "192x192",
       "type": "image/png"
     },
     {
-      "src": "smartcart-icon.png",
-      "sizes": "192x192",
+      "src": "assets/icons/icon-512.png",
+      "sizes": "512x512",
       "type": "image/png"
     }
   ]

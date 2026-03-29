@@ -4,47 +4,65 @@
   <meta charset="utf-8">
   <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
   <title>SmartCart</title>
-  <meta name="theme-color" content="#f3f3f0">
-  <link rel="stylesheet" href="styles.css">
-  <link rel="icon" type="image/png" href="smartcart-icon.png">
+  <meta id="themeColorMeta" name="theme-color" content="#78a9d6">
+  <meta name="description" content="SmartCart is a local-first grocery planning app for reusable lists, store-aware prices, and trip estimates.">
+  <meta name="format-detection" content="telephone=no">
+  <meta name="apple-mobile-web-app-capable" content="yes">
+  <meta name="apple-mobile-web-app-status-bar-style" content="default">
   <link rel="manifest" href="manifest.webmanifest">
-  <link rel="apple-touch-icon" href="smartcart-icon.png">
+  <link rel="apple-touch-icon" href="assets/icons/apple-touch-icon.png">
+  <link rel="icon" type="image/png" sizes="32x32" href="assets/icons/favicon-32.png">
+  <link rel="icon" type="image/png" sizes="192x192" href="assets/icons/icon-192.png">
+  <link rel="stylesheet" href="styles.css">
 </head>
 <body>
   <div id="app" class="app-shell" data-theme="system">
     <aside class="sidebar" aria-label="Primary navigation">
       <div class="brand">
-        <img class="brand__logo" src="smartcart-icon.png" alt="SmartCart logo">
+        <img class="brand__logo" src="assets/icons/icon-192.png" alt="SmartCart logo">
         <div class="brand__text">
           <h1>SmartCart</h1>
-          <p>Price estimator</p>
+          <p>Personal grocery planner</p>
         </div>
       </div>
+
       <nav class="nav nav--sidebar">
-        <button class="nav-btn is-active" data-view-target="list" aria-current="page">List</button>
-        <button class="nav-btn" data-view-target="catalog">Catalog</button>
-        <button class="nav-btn" data-view-target="import">Import</button>
+        <button type="button" class="nav-btn is-active" data-view-target="list" aria-current="page">
+          <span class="nav-btn__label">List</span>
+          <span class="nav-btn__meta">Current trip</span>
+        </button>
+        <button type="button" class="nav-btn" data-view-target="catalog">
+          <span class="nav-btn__label">Catalog</span>
+          <span class="nav-btn__meta">Saved items</span>
+        </button>
+        <button type="button" class="nav-btn" data-view-target="import">
+          <span class="nav-btn__label">Import</span>
+          <span class="nav-btn__meta">Receipt review</span>
+        </button>
       </nav>
+
       <div class="sidebar__footer">
-        <button id="openSettingsBtn" class="btn btn--secondary btn--full">Settings</button>
+        <button id="openSettingsBtn" type="button" class="btn btn--secondary btn--full">Settings</button>
       </div>
     </aside>
 
     <header class="app-bar">
       <div class="app-bar__top">
-        <div>
+        <div class="store-panel">
           <p class="eyebrow">Current store</p>
           <div class="store-row">
             <label class="sr-only" for="storeSelect">Select grocery store</label>
             <select id="storeSelect" class="input input--select"></select>
           </div>
         </div>
+
         <div class="app-bar__actions">
-          <button id="printBtn" class="btn btn--secondary">Print</button>
-          <button id="exportListBtn" class="btn btn--secondary">Export CSV</button>
-          <button class="btn btn--primary desktop-only" id="openSettingsBtnTop">Settings</button>
+          <button id="printBtn" type="button" class="btn btn--secondary">Print</button>
+          <button id="exportListBtn" type="button" class="btn btn--secondary">Export CSV</button>
+          <button id="openSettingsBtnTop" type="button" class="btn btn--primary desktop-only">Settings</button>
         </div>
       </div>
+
       <div class="summary-strip" aria-label="Trip summary">
         <article class="summary-card">
           <span>Subtotal</span>
@@ -58,6 +76,10 @@
           <span>Estimated total</span>
           <strong id="totalValue">$0.00</strong>
         </article>
+        <article class="summary-card summary-card--budget">
+          <span>Budget check</span>
+          <strong id="budgetStatus" class="budget-pill">No trip budget set</strong>
+        </article>
       </div>
     </header>
 
@@ -66,98 +88,99 @@
         <div class="view-header">
           <div>
             <h2 id="listHeading">List</h2>
-            <p>Build the current trip fast and keep the estimate honest.</p>
+            <p>Build the current trip fast, keep the total honest, and save good lists for later.</p>
           </div>
           <div class="view-header__actions">
-            <button id="openAddItemBtn" class="btn btn--primary">Add item</button>
-            <button id="saveTripTemplateBtn" class="btn btn--secondary">Save list</button>
-            <button id="clearTripBtn" class="btn btn--ghost">Clear trip</button>
+            <button id="openAddItemBtn" type="button" class="btn btn--primary">Add item</button>
+            <button id="saveTripTemplateBtn" type="button" class="btn btn--secondary">Save list</button>
+            <button id="clearTripBtn" type="button" class="btn btn--ghost">Clear trip</button>
           </div>
         </div>
 
-
-        <section class="panel quick-add-panel" aria-labelledby="quickAddHeading">
-          <div class="quick-add-panel__header">
-            <div>
-              <h3 id="quickAddHeading">Quick add from saved items</h3>
-              <p>Start typing from your current store catalog. Pick a match and the price fills itself in.</p>
+        <div class="list-layout">
+          <div class="list-main">
+            <div id="listEmptyState" class="empty-state" hidden>
+              <h3>Your trip is empty</h3>
+              <p>Add something manually or grab it from the saved catalog. A blank cart estimates exactly nothing.</p>
+              <div class="empty-state__actions">
+                <button type="button" class="btn btn--primary" data-open-editor="new-trip">Add first item</button>
+                <button type="button" class="btn btn--secondary" data-view-target="catalog">Browse catalog</button>
+              </div>
             </div>
-          </div>
-          <div class="quick-add-bar">
-            <label class="field field--grow">
-              <span>Find item</span>
-              <input id="listQuickSearch" class="input" type="search" placeholder="Type bananas, eggs, spinach, code, or brand" autocomplete="off">
-            </label>
-            <button id="listQuickAddFirstBtn" class="btn btn--primary" type="button">Add first match</button>
-          </div>
-          <div id="listQuickResultsMeta" class="muted-inline quick-add-meta">Showing items for the current store.</div>
-          <div id="listQuickResults" class="quick-add-results" aria-live="polite"></div>
-        </section>
 
-        <div id="listEmptyState" class="empty-state" hidden>
-          <h3>Your trip is empty</h3>
-          <p>Add an item manually or grab one from the catalog. Empty lists do not buy groceries. Tragic but true.</p>
-          <div class="empty-state__actions">
-            <button class="btn btn--primary" data-open-editor="new-trip">Add first item</button>
-            <button class="btn btn--secondary" data-view-target="catalog">Browse catalog</button>
-          </div>
-        </div>
-
-        <div class="table-wrap desktop-table" id="tripTableWrap">
-          <table class="data-table">
-            <thead>
-              <tr>
-                <th>Item</th>
-                <th>Code</th>
-                <th>Category</th>
-                <th>Qty</th>
-                <th>Price</th>
-                <th>Subtotal</th>
-                <th>Actions</th>
-              </tr>
-            </thead>
-            <tbody id="tripTableBody"></tbody>
-          </table>
-        </div>
-
-        <div id="tripCardList" class="card-list mobile-list"></div>
-
-        <section class="panel panel--subtle saved-trip-panel">
-          <div class="panel-head-inline">
-            <div>
-              <h3>Saved future-trip lists</h3>
-              <p class="help-text">Save named trips and load them again later.</p>
+            <div class="table-wrap desktop-table" id="tripTableWrap">
+              <table class="data-table">
+                <thead>
+                  <tr>
+                    <th>Item</th>
+                    <th>Code</th>
+                    <th>Category</th>
+                    <th>Qty</th>
+                    <th>Price</th>
+                    <th>Subtotal</th>
+                    <th>Actions</th>
+                  </tr>
+                </thead>
+                <tbody id="tripTableBody"></tbody>
+              </table>
             </div>
+
+            <div id="tripCardList" class="card-list mobile-list"></div>
           </div>
-          <div id="savedTripList" class="saved-trip-list"></div>
-        </section>
+
+          <aside class="list-side">
+            <section class="panel quick-add-panel" aria-labelledby="quickAddHeading">
+              <div class="quick-add-panel__header">
+                <div>
+                  <h3 id="quickAddHeading">Quick add from saved items</h3>
+                  <p>Search your current store’s catalog. Pick a match and SmartCart fills the price for you.</p>
+                </div>
+              </div>
+              <div class="quick-add-bar">
+                <label class="field field--grow">
+                  <span>Find item</span>
+                  <input id="listQuickSearch" class="input" type="search" placeholder="Type bananas, eggs, spinach, code, or brand" autocomplete="off">
+                </label>
+                <button id="listQuickAddFirstBtn" type="button" class="btn btn--primary">Add first match</button>
+              </div>
+              <div id="listQuickResultsMeta" class="muted-inline quick-add-meta">Showing items for the current store.</div>
+              <div id="listQuickResults" class="quick-add-results" aria-live="polite"></div>
+            </section>
+
+            <section class="panel panel--subtle saved-trip-panel" aria-labelledby="savedTripHeading">
+              <div class="panel-head-inline">
+                <div>
+                  <h3 id="savedTripHeading">Saved future-trip lists</h3>
+                  <p class="help-text">Reusable trip shells for later shopping runs.</p>
+                </div>
+              </div>
+              <div id="savedTripList" class="saved-trip-list"></div>
+            </section>
+          </aside>
+        </div>
       </section>
 
       <section id="catalogView" class="view" aria-labelledby="catalogHeading">
         <div class="view-header">
           <div>
             <h2 id="catalogHeading">Catalog</h2>
-            <p>Saved items you can reuse without typing them into oblivion.</p>
+            <p>Your long-term price memory by store. Search it, filter it, and add items straight to the trip.</p>
           </div>
           <div class="view-header__actions">
-            <button id="saveSelectedTripToCatalogBtn" class="btn btn--secondary">Save selected trip item</button>
-            <button class="btn btn--primary" data-open-editor="new-catalog">New catalog item</button>
+            <button id="saveSelectedTripToCatalogBtn" type="button" class="btn btn--secondary">Save selected trip item</button>
+            <button type="button" class="btn btn--primary" data-open-editor="new-catalog">New catalog item</button>
           </div>
         </div>
 
         <div class="toolbar">
-          <button id="catalogStoreModeBtn" class="btn btn--secondary">Showing current store only</button>
+          <button id="catalogStoreModeBtn" type="button" class="btn btn--secondary">Showing current store only</button>
           <label class="field field--grow">
             <span>Search catalog</span>
-            <input id="catalogSearch" class="input" type="search" placeholder="Search name, code, or category">
+            <input id="catalogSearch" class="input" type="search" placeholder="Search name, brand, code, or category">
           </label>
           <label class="field">
             <span>Category</span>
             <select id="catalogCategoryFilter" class="input input--select"></select>
-          </label>
-          <label class="field">
-            <span>Subcategory</span>
-            <select id="catalogSubcategoryFilter" class="input input--select"></select>
           </label>
         </div>
 
@@ -165,7 +188,7 @@
 
         <div id="catalogEmptyState" class="empty-state" hidden>
           <h3>No catalog items yet</h3>
-          <p>Import a receipt, save a trip item, or create one manually. The whole point is to stop retyping the same groceries like a cursed ritual.</p>
+          <p>Import a receipt, save a trip item, or create one manually. The catalog gets smarter every time you use it.</p>
         </div>
 
         <div class="table-wrap desktop-table">
@@ -191,37 +214,37 @@
         <div class="view-header">
           <div>
             <h2 id="importHeading">Import</h2>
-            <p>Paste receipt text or attach a receipt image for review. This MVP keeps the parser honest: you review everything.</p>
+            <p>Paste receipt text, review the rows, then decide what belongs in the catalog, the current trip, or both.</p>
           </div>
         </div>
 
         <div class="import-grid">
           <section class="panel">
-            <h3>Step 1: Bring in receipt data</h3>
+            <h3>Step 1 · Bring in receipt data</h3>
             <label class="field">
               <span>Receipt image</span>
               <input id="receiptImageInput" class="input" type="file" accept="image/*">
             </label>
-            <p id="receiptImageNote" class="help-text">Image upload is saved only for this review step. Static GitHub Pages cannot do reliable OCR by magic. Paste text from your phone’s image copy feature for best results.</p>
+            <p id="receiptImageNote" class="help-text">Image upload is only for reference in this review step. For best results, copy the text from the image on your phone or computer and paste it below.</p>
             <label class="field">
               <span>Paste receipt text</span>
               <textarea id="receiptText" class="input textarea" rows="10" placeholder="Paste copied receipt text here"></textarea>
             </label>
-            <div class="stack-row backup-actions-row">
-              <button id="parseReceiptBtn" class="btn btn--primary">Parse receipt</button>
-              <button id="clearImportBtn" class="btn btn--ghost">Clear import</button>
+            <div class="stack-row">
+              <button id="parseReceiptBtn" type="button" class="btn btn--primary">Parse receipt</button>
+              <button id="clearImportBtn" type="button" class="btn btn--ghost">Clear import</button>
             </div>
           </section>
 
           <section class="panel">
-            <h3>Step 2: Review parsed items</h3>
+            <h3>Step 2 · Review parsed items</h3>
             <div id="importEmptyState" class="empty-state empty-state--compact">
-              <p>No parsed items yet. Paste receipt text, then parse. You still review the rows because receipt parsing lies like a cheap rug.</p>
+              <p>No parsed items yet. Paste receipt text, then parse. SmartCart keeps this as a review flow on purpose.</p>
             </div>
             <div id="importReviewWrap" hidden>
               <div id="importReviewList" class="review-list"></div>
               <div class="stack-row stack-row--end import-actions">
-                <button id="confirmImportBtn" class="btn btn--primary">Confirm import</button>
+                <button id="confirmImportBtn" type="button" class="btn btn--primary">Confirm import</button>
               </div>
             </div>
           </section>
@@ -230,61 +253,68 @@
     </main>
 
     <nav class="bottom-nav" aria-label="Primary navigation">
-      <button class="nav-btn is-active" data-view-target="list" aria-current="page">List</button>
-      <button class="nav-btn" data-view-target="catalog">Catalog</button>
-      <button class="nav-btn" data-view-target="import">Import</button>
+      <button type="button" class="nav-btn is-active" data-view-target="list" aria-current="page">List</button>
+      <button type="button" class="nav-btn" data-view-target="catalog">Catalog</button>
+      <button type="button" class="nav-btn" data-view-target="import">Import</button>
     </nav>
 
     <div class="sticky-total-mobile" aria-label="Sticky total bar">
-      <div>
+      <div class="sticky-total-mobile__meta">
         <span>Total</span>
         <strong id="stickyTotalValue">$0.00</strong>
       </div>
-      <button id="stickyAddItemBtn" class="btn btn--primary">Add</button>
+      <button id="stickyAddItemBtn" type="button" class="btn btn--primary">Add item</button>
     </div>
   </div>
 
   <div id="overlay" class="overlay" hidden></div>
 
-  <aside id="editorPanel" class="editor-panel" aria-hidden="true" aria-labelledby="editorTitle">
+  <aside id="editorPanel" class="editor-panel" role="dialog" aria-modal="true" aria-hidden="true" aria-labelledby="editorTitle">
     <div class="editor-panel__header">
       <div>
         <p class="eyebrow" id="editorModeLabel">Editor</p>
         <h3 id="editorTitle">Edit item</h3>
       </div>
-      <button id="closeEditorBtn" class="icon-btn" aria-label="Close editor">✕</button>
+      <button id="closeEditorBtn" type="button" class="icon-btn" aria-label="Close editor">✕</button>
     </div>
     <form id="editorForm" class="editor-form">
       <input type="hidden" id="editorEntityType">
       <input type="hidden" id="editorItemId">
+
       <label class="field">
         <span>Name</span>
         <input id="editorName" class="input" type="text" list="editorItemSuggestions" autocomplete="off" required>
         <datalist id="editorItemSuggestions"></datalist>
-        <small id="editorAutocompleteHint" class="field-note">Tip: start typing a saved item from this store and SmartCart will fill the rest.</small>
+        <small id="editorAutocompleteHint" class="field-note">Start typing a saved item from this store and SmartCart can fill the rest.</small>
       </label>
+
       <label class="field">
         <span>Code</span>
         <input id="editorCode" class="input" type="text">
       </label>
+
       <label class="field">
         <span>Category</span>
         <input id="editorCategory" class="input" type="text" placeholder="Produce, Pantry, Frozen">
       </label>
+
       <label class="field" id="editorQtyField">
         <span>Quantity</span>
         <input id="editorQty" class="input" type="number" min="1" step="1" value="1">
       </label>
+
       <label class="field">
         <span>Price</span>
         <input id="editorPrice" class="input" type="number" min="0" step="0.01" value="0">
       </label>
+
       <label class="field" id="editorFavoriteField">
         <span class="checkbox-row">
           <input id="editorFavorite" type="checkbox">
           <span>Favorite item</span>
         </span>
       </label>
+
       <div class="editor-form__actions">
         <button type="submit" class="btn btn--primary">Save</button>
         <button type="button" id="deleteEditorItemBtn" class="btn btn--ghost">Delete</button>
@@ -299,21 +329,25 @@
           <p class="eyebrow">Settings</p>
           <h2 id="settingsTitle">Preferences and backup</h2>
         </div>
-        <button id="closeSettingsBtn" class="icon-btn" aria-label="Close settings">✕</button>
+        <button id="closeSettingsBtn" type="button" class="icon-btn" aria-label="Close settings">✕</button>
       </div>
+
       <div class="modal__body">
         <label class="field">
           <span>Default store</span>
           <select id="settingsDefaultStore" class="input input--select"></select>
         </label>
+
         <label class="field">
           <span>Tax rate override (%)</span>
           <input id="settingsTaxOverride" class="input" type="number" min="0" step="0.01" placeholder="Optional">
         </label>
+
         <label class="field">
-          <span>Trip budget target</span>
-          <div class="money-input-wrap"><span class="money-input-prefix" aria-hidden="true">$</span><input id="settingsBudgetTarget" class="input money-input" type="text" inputmode="decimal" placeholder="0.00"></div>
+          <span>Trip budget target ($)</span>
+          <input id="settingsBudgetTarget" class="input" type="number" min="0" step="0.01" placeholder="Optional">
         </label>
+
         <label class="field">
           <span>Theme</span>
           <select id="settingsTheme" class="input input--select">
@@ -322,29 +356,31 @@
             <option value="dark">Dark</option>
           </select>
         </label>
+
         <div class="panel panel--subtle">
           <h3>Backup</h3>
           <p class="help-text">Export your local data to JSON or restore from a previous backup file.</p>
-          <div class="stack-row">
+          <div class="stack-row settings-backup-row">
             <button id="exportBackupBtn" class="btn btn--secondary" type="button">Export backup</button>
-            <label class="btn btn--ghost file-btn import-backup-btn">
+            <label class="btn btn--ghost file-btn">
               Import backup
               <input id="importBackupInput" type="file" accept="application/json" hidden>
             </label>
           </div>
         </div>
+
         <div class="panel panel--danger">
           <h3>Clear local data</h3>
-          <p class="help-text">This removes current trip, catalog, import review data, and settings from this browser.</p>
+          <p class="help-text">This removes the current trip, catalog, import review data, saved lists, and settings from this browser.</p>
           <button id="clearAllDataBtn" class="btn btn--danger" type="button">Clear all data</button>
         </div>
       </div>
+
       <div class="modal__footer">
         <button id="saveSettingsBtn" class="btn btn--primary" type="button">Save settings</button>
       </div>
     </div>
   </section>
-
 
   <section id="printableArea" class="print-sheet" aria-hidden="true">
     <h1 class="print-title">Grocery List</h1>
@@ -372,6 +408,7 @@
 
   <div id="toastArea" class="toast-area" aria-live="polite" aria-atomic="true"></div>
 
+  <script src="data/starter-catalog.inline.js"></script>
   <script src="app.js"></script>
 </body>
 </html>
