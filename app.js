@@ -54,6 +54,7 @@ const state = {
     editorOpen: false,
     settingsOpen: false,
     showAllStoresCatalog: false,
+    iphoneSummaryExpanded: false,
   },
 };
 
@@ -344,6 +345,7 @@ function syncPhoneLayoutScope() {
   }
 
   document.body.classList.toggle('is-iphone-layout', isIphoneLayout);
+  setIphoneSummaryExpanded(isIphoneLayout ? state.ui.iphoneSummaryExpanded : true);
 }
 
 function initPhoneLayoutScope() {
@@ -381,6 +383,22 @@ function setActiveView(viewName) {
   announce(`Showing ${label} view`);
 }
 
+function setIphoneSummaryExpanded(expanded, options = {}) {
+  state.ui.iphoneSummaryExpanded = Boolean(expanded);
+  const isPhone = document.body.classList.contains('is-iphone-layout');
+  document.body.classList.toggle('summary-collapsed', isPhone && !state.ui.iphoneSummaryExpanded);
+  if (els.iphoneSummaryToggle) {
+    els.iphoneSummaryToggle.setAttribute('aria-expanded', String(state.ui.iphoneSummaryExpanded));
+    els.iphoneSummaryToggle.textContent = state.ui.iphoneSummaryExpanded ? 'Hide trip summary' : 'Trip summary';
+  }
+  if (els.iphoneSummaryDetails) {
+    els.iphoneSummaryDetails.hidden = isPhone && !state.ui.iphoneSummaryExpanded;
+  }
+  if (options.announce && isPhone) {
+    announce(state.ui.iphoneSummaryExpanded ? 'Trip summary expanded' : 'Trip summary collapsed');
+  }
+}
+
 function renderStoreOptions() {
   els.storeSelect.innerHTML = state.stores.map((store) => `<option value="${store.id}">${store.name}</option>`).join('');
   els.settingsDefaultStore.innerHTML = state.stores.map((store) => `<option value="${store.id}">${store.name}</option>`).join('');
@@ -397,7 +415,9 @@ function renderSummary() {
   els.subtotalValue.textContent = money(subtotal);
   els.taxValue.textContent = money(tax);
   els.totalValue.textContent = money(total);
+  if (els.totalValueCompact) els.totalValueCompact.textContent = money(total);
   els.stickyTotalValue.textContent = money(total);
+  if (els.bottomNavTotalValue) els.bottomNavTotalValue.textContent = money(total);
   if (els.budgetStatus) {
     if (remaining === null) {
       els.budgetStatus.textContent = 'No trip budget set';
@@ -633,22 +653,26 @@ function renderCatalogView() {
   els.catalogCardList.innerHTML = visibleItems.map((item) => {
     const stats = getPriceStats(item);
     return `
-    <article class="card-item">
-      <div class="card-item__top">
-        <div>
+    <article class="card-item catalog-card">
+      <div class="catalog-card__header">
+        <div class="catalog-card__title-wrap">
           <h3>${escapeHtml(formatItemLabel(item))}</h3>
-          <div class="card-meta">
+          <div class="card-meta catalog-card__meta">
             ${formatCategoryBadge(item.category)}
             <span>${escapeHtml(item.code || 'No code')}</span>
             <span>${escapeHtml(item.brand || activeStoreBrand() || 'Store brand')}</span>
           </div>
         </div>
-        <strong>${money(item.defaultPrice)}</strong>
       </div>
-      <div class="card-item__bottom">
-        <span class="badge">${escapeHtml(storeNameById(item.storeId))}</span>
-        <span class="badge">Avg ${money(stats.avg)}</span>
-        <div class="stack-row">
+      <div class="catalog-card__footer">
+        <div class="catalog-card__pricing">
+          <strong class="catalog-card__price">${money(item.defaultPrice)}</strong>
+          <div class="catalog-card__badges">
+            <span class="badge">${escapeHtml(storeNameById(item.storeId))}</span>
+            <span class="badge">Avg ${money(stats.avg)}</span>
+          </div>
+        </div>
+        <div class="catalog-card__actions">
           <button class="btn btn--primary" data-add-catalog-to-trip="${item.id}" aria-label="Add ${escapeHtmlAttr(item.name)} to the current list">Add</button>
           <button class="btn btn--ghost" data-edit-catalog="${item.id}" aria-label="Edit saved item ${escapeHtmlAttr(item.name)}">Edit</button>
         </div>
@@ -1387,7 +1411,7 @@ function bindEvents() {
       return;
     }
 
-    if (event.target.closest('[data-open-editor="new-trip"]') || event.target.closest('#openAddItemBtn') || event.target.closest('#stickyAddItemBtn')) {
+    if (event.target.closest('[data-open-editor="new-trip"]') || event.target.closest('#openAddItemBtn') || event.target.closest('#stickyAddItemBtn') || event.target.closest('#bottomNavAddItemBtn')) {
       openEditor('trip');
       return;
     }
@@ -1536,6 +1560,11 @@ function bindEvents() {
   els.confirmImportBtn.addEventListener('click', confirmImport);
   els.printBtn.addEventListener('click', handlePrint);
   els.exportListBtn.addEventListener('click', exportCsv);
+  if (els.iphoneSummaryToggle) {
+    els.iphoneSummaryToggle.addEventListener('click', () => {
+      setIphoneSummaryExpanded(!state.ui.iphoneSummaryExpanded, { announce: true });
+    });
+  }
   els.clearTripBtn.addEventListener('click', () => {
     if (!state.tripItems.length) return;
     if (!window.confirm('Clear the current grocery trip?')) return;
@@ -1651,7 +1680,11 @@ function cacheElements() {
     subtotalValue: document.getElementById('subtotalValue'),
     taxValue: document.getElementById('taxValue'),
     totalValue: document.getElementById('totalValue'),
+    totalValueCompact: document.getElementById('totalValueCompact'),
+    iphoneSummaryToggle: document.getElementById('iphoneSummaryToggle'),
+    iphoneSummaryDetails: document.getElementById('iphoneSummaryDetails'),
     stickyTotalValue: document.getElementById('stickyTotalValue'),
+    bottomNavTotalValue: document.getElementById('bottomNavTotalValue'),
     budgetStatus: document.getElementById('budgetStatus'),
     saveTripTemplateBtn: document.getElementById('saveTripTemplateBtn'),
     savedTripList: document.getElementById('savedTripList'),

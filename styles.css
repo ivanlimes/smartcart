@@ -58,9 +58,9 @@
   --z-modal: 50;
   /* iPhone-only layout tokens: future phone work should use these before adding new globals */
   --iphone-page-inline: 16px;
-  --iphone-bottom-nav-offset: calc(12px + env(safe-area-inset-bottom));
+  --iphone-bottom-nav-offset: calc(8px + env(safe-area-inset-bottom));
   --iphone-sticky-total-offset: calc(88px + env(safe-area-inset-bottom));
-  --iphone-main-padding-bottom: calc(160px + env(safe-area-inset-bottom));
+  --iphone-main-padding-bottom: calc(122px + env(safe-area-inset-bottom));
 }
 [data-theme="dark"] {
   color-scheme: dark;
@@ -229,6 +229,18 @@ p { color: var(--text-secondary); }
 .card-list, .review-list, .saved-trip-list { display: grid; gap: var(--space-12); }
 .card-item { padding: var(--space-16); display: grid; gap: var(--space-12); }
 .card-item__top, .card-item__bottom { display: flex; justify-content: space-between; align-items: flex-start; gap: var(--space-12); }
+.catalog-card { gap: 10px; }
+.catalog-card__header, .catalog-card__title-wrap, .catalog-card__pricing { display: grid; gap: 8px; min-width: 0; }
+.catalog-card__footer {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) auto;
+  align-items: end;
+  gap: 12px;
+}
+.catalog-card__price { font-size: 1.18rem; line-height: 1.1; color: var(--price-accent); }
+.catalog-card__badges { display: flex; flex-wrap: wrap; gap: 8px; }
+.catalog-card__actions { display: inline-flex; flex-wrap: wrap; gap: 8px; justify-content: flex-end; }
+.catalog-card__actions > .btn { min-height: 40px; padding-inline: 14px; }
 .card-meta { display: flex; flex-wrap: wrap; gap: 8px; font-size: var(--text-sm); color: var(--text-secondary); }
 .badge {
   display: inline-flex; align-items: center; min-height: 28px;
@@ -307,6 +319,42 @@ p { color: var(--text-secondary); }
 .budget-pill { display: inline-flex; align-items: center; min-height: 28px; font-weight: 700; color: var(--text-primary); }
 .budget-pill--good { color: var(--state-success); }
 .budget-pill--warn { color: var(--state-error); }
+
+.iphone-summary-compact,
+.iphone-summary-toggle { display: none; }
+
+body.is-iphone-layout .iphone-summary-compact {
+  display: grid;
+  gap: 6px;
+  padding: 16px;
+  margin-top: 12px;
+  border-radius: var(--radius-xl);
+  background: linear-gradient(180deg, rgba(160,205,248,0.96), rgba(147,192,235,0.96));
+  color: #fff;
+  box-shadow: var(--shadow-md);
+}
+body.is-iphone-layout .iphone-summary-compact span {
+  font-size: var(--text-sm);
+  color: rgba(255,255,255,0.92);
+}
+body.is-iphone-layout .iphone-summary-compact strong {
+  font-size: clamp(1.45rem, 1.1rem + 1vw, 1.95rem);
+  line-height: 1.1;
+  color: #fff;
+}
+body.is-iphone-layout .iphone-summary-toggle {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  min-height: 44px;
+  margin-top: 10px;
+}
+body.is-iphone-layout .iphone-summary-details {
+  display: grid;
+  gap: 12px;
+  margin-top: 12px;
+}
+body.is-iphone-layout.summary-collapsed .iphone-summary-details { display: none; }
 .main-content { padding: var(--space-24); padding-block-end: calc(var(--space-40) + env(safe-area-inset-bottom)); }
 .view { display: none; }
 .view.is-active { display: block; }
@@ -485,6 +533,53 @@ p { color: var(--text-secondary); }
     padding: 16px var(--iphone-page-inline);
     padding-block-end: var(--iphone-main-padding-bottom);
   }
+  body.is-iphone-layout[data-active-view="catalog"] .iphone-summary-compact,
+  body.is-iphone-layout[data-active-view="catalog"] .iphone-summary-toggle,
+  body.is-iphone-layout[data-active-view="catalog"] .iphone-summary-details,
+  body.is-iphone-layout[data-active-view="import"] .iphone-summary-compact,
+  body.is-iphone-layout[data-active-view="import"] .iphone-summary-toggle,
+  body.is-iphone-layout[data-active-view="import"] .iphone-summary-details {
+    display: none !important;
+  }
+  body.is-iphone-layout[data-active-view="catalog"] .app-bar,
+  body.is-iphone-layout[data-active-view="import"] .app-bar {
+    padding-block: 10px 12px;
+  }
+  body.is-iphone-layout[data-active-view="catalog"] .app-bar__top,
+  body.is-iphone-layout[data-active-view="import"] .app-bar__top {
+    gap: 8px;
+  }
+  body.is-iphone-layout[data-active-view="catalog"] .bottom-nav__top,
+  body.is-iphone-layout[data-active-view="import"] .bottom-nav__top {
+    display: none;
+  }
+  body.is-iphone-layout[data-active-view="catalog"] .main-content,
+  body.is-iphone-layout[data-active-view="import"] .main-content {
+    padding-block-end: calc(86px + env(safe-area-inset-bottom));
+  }
+  body.is-iphone-layout[data-active-view="catalog"] #catalogView .view-header,
+  body.is-iphone-layout[data-active-view="import"] #importView .view-header {
+    gap: 8px;
+    margin-block-end: 12px;
+  }
+  body.is-iphone-layout[data-active-view="catalog"] #catalogView .view-header p,
+  body.is-iphone-layout[data-active-view="import"] #importView .view-header p {
+    display: none;
+  }
+  body.is-iphone-layout[data-active-view="catalog"] #saveSelectedTripToCatalogBtn {
+    display: none;
+  }
+  body.is-iphone-layout[data-active-view="catalog"] #catalogView .view-header__actions {
+    grid-template-columns: 1fr;
+  }
+  body.is-iphone-layout[data-active-view="catalog"] #catalogView .view-header__actions > .btn,
+  body.is-iphone-layout[data-active-view="catalog"] #catalogView .view-header__actions > .btn:first-child {
+    grid-column: auto;
+  }
+  body.is-iphone-layout[data-active-view="catalog"] #catalogView .toolbar {
+    gap: 10px;
+    margin-block-end: 12px;
+  }
   body.is-iphone-layout .view-header {
     display: grid;
     gap: 12px;
@@ -564,6 +659,52 @@ p { color: var(--text-secondary); }
   body.is-iphone-layout .quick-add-card,
   body.is-iphone-layout .saved-trip-card {
     gap: 12px;
+  }
+  body.is-iphone-layout .catalog-card {
+    padding: 12px 14px;
+    gap: 8px;
+  }
+  body.is-iphone-layout .catalog-card__header,
+  body.is-iphone-layout .catalog-card__title-wrap,
+  body.is-iphone-layout .catalog-card__pricing {
+    gap: 6px;
+  }
+  body.is-iphone-layout .catalog-card h3 {
+    font-size: 1rem;
+    line-height: 1.25;
+  }
+  body.is-iphone-layout .catalog-card__meta {
+    gap: 6px;
+    font-size: 0.82rem;
+    line-height: 1.25;
+  }
+  body.is-iphone-layout .catalog-card .badge,
+  body.is-iphone-layout .catalog-card .badge--category {
+    min-height: 28px;
+    padding-inline: 9px;
+    font-size: 0.8rem;
+  }
+  body.is-iphone-layout .catalog-card__footer {
+    grid-template-columns: minmax(0, 1fr) auto;
+    align-items: end;
+    gap: 10px;
+  }
+  body.is-iphone-layout .catalog-card__price {
+    font-size: 1rem;
+  }
+  body.is-iphone-layout .catalog-card__badges {
+    gap: 6px;
+  }
+  body.is-iphone-layout .catalog-card__actions {
+    display: inline-flex;
+    flex-wrap: nowrap;
+    gap: 8px;
+  }
+  body.is-iphone-layout .catalog-card__actions > .btn {
+    min-height: 38px;
+    padding-inline: 12px;
+    border-radius: 999px;
+    white-space: nowrap;
   }
   body.is-iphone-layout .card-item__top,
   body.is-iphone-layout .card-item__bottom,
@@ -652,30 +793,67 @@ p { color: var(--text-secondary); }
   }
   body.is-iphone-layout .bottom-nav {
     position: fixed;
-    left: 10px;
-    right: 10px;
+    left: 8px;
+    right: 8px;
     bottom: var(--iphone-bottom-nav-offset);
     display: grid;
     grid-template-columns: repeat(3, 1fr);
-    gap: 8px;
-    padding: 8px;
-    background: rgba(255,255,255,.9);
+    gap: 6px;
+    padding: 6px;
+    background: rgba(255,255,255,.92);
     border: 1px solid var(--border-muted);
-    border-radius: 24px;
-    box-shadow: var(--shadow-lg);
+    border-radius: 18px;
+    box-shadow: 0 10px 28px rgba(15,23,42,.16);
     z-index: 16;
   }
   body.is-iphone-layout [data-theme="dark"] .bottom-nav,
   body.is-iphone-layout .app-shell[data-theme="dark"] .bottom-nav { background: rgba(21,32,45,.92); }
+  body.is-iphone-layout .bottom-nav__top {
+    grid-column: 1 / -1;
+    display: grid;
+    grid-template-columns: minmax(0, 1fr) auto;
+    align-items: center;
+    gap: 8px;
+    padding: 0 0 4px;
+  }
+  body.is-iphone-layout .bottom-nav__total {
+    min-width: 0;
+    display: grid;
+    gap: 2px;
+  }
+  body.is-iphone-layout .bottom-nav__total span {
+    font-size: 0.72rem;
+    color: var(--text-secondary);
+  }
+  body.is-iphone-layout .bottom-nav__total strong {
+    font-size: 1rem;
+    line-height: 1.1;
+    color: var(--price-accent);
+  }
+  body.is-iphone-layout .bottom-nav__add {
+    min-height: 40px;
+    padding-inline: 14px;
+    border-radius: 999px;
+    font-size: 0.92rem;
+    white-space: nowrap;
+  }
   body.is-iphone-layout .bottom-nav .nav-btn {
-    min-height: 56px;
-    padding-inline: 0;
+    min-height: 48px;
+    padding: 6px 2px;
     text-align: center;
     justify-items: center;
     align-content: center;
-    border-radius: 16px;
+    border-radius: 12px;
+    font-size: 0.9rem;
+    line-height: 1.05;
+  }
+  body.is-iphone-layout .bottom-nav .nav-btn.is-active {
+    background: color-mix(in srgb, var(--action-primary) 10%, var(--surface-strong) 90%);
+    border-color: color-mix(in srgb, var(--action-primary) 26%, var(--border-muted) 74%);
+    box-shadow: none;
   }
   body.is-iphone-layout .sticky-total-mobile {
+    display: none;
     position: fixed;
     left: 12px;
     right: 12px;
@@ -824,31 +1002,35 @@ p { color: var(--text-secondary); }
   body.is-iphone-layout .summary-strip {
     grid-template-columns: 1fr;
   }
+  body.is-iphone-layout .catalog-card__footer,
+  body.is-iphone-layout .catalog-card__actions {
+    grid-template-columns: 1fr;
+    display: grid;
+  }
   body.is-iphone-layout .view-header__actions > .btn:first-child,
   body.is-iphone-layout .summary-card--total,
   body.is-iphone-layout .summary-card--budget {
     grid-column: auto;
   }
-  body.is-iphone-layout .sticky-total-mobile {
+  body.is-iphone-layout .bottom-nav__top {
     grid-template-columns: 1fr;
-    border-radius: 24px;
-    gap: 10px;
-    padding: 14px;
+    gap: 6px;
+    padding-bottom: 4px;
   }
-  body.is-iphone-layout .sticky-total-mobile .btn {
+  body.is-iphone-layout .bottom-nav__add {
     width: 100%;
     min-width: 0;
   }
   body.is-iphone-layout .bottom-nav {
-    left: 8px;
-    right: 8px;
-    gap: 6px;
-    padding: 6px;
+    left: 6px;
+    right: 6px;
+    gap: 4px;
+    padding: 5px;
   }
   body.is-iphone-layout .bottom-nav .nav-btn {
-    min-height: 52px;
-    font-size: var(--text-sm);
-    line-height: 1.1;
+    min-height: 46px;
+    font-size: 0.82rem;
+    line-height: 1.05;
   }
 }
 

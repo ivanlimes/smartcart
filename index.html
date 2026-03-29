@@ -56,30 +56,41 @@
           </div>
         </div>
 
-        <div class="app-bar__actions">
-          <button id="printBtn" type="button" class="btn btn--secondary">Print</button>
-          <button id="exportListBtn" type="button" class="btn btn--secondary">Export CSV</button>
-          <button id="openSettingsBtnTop" type="button" class="btn btn--primary desktop-only" aria-controls="settingsModal" aria-haspopup="dialog" aria-expanded="false">Settings</button>
-        </div>
-      </div>
-
-      <div class="summary-strip" aria-label="Trip summary" role="status" aria-live="polite" aria-atomic="true">
-        <article class="summary-card">
-          <span>Subtotal</span>
-          <strong id="subtotalValue">$0.00</strong>
-        </article>
-        <article class="summary-card">
-          <span>Tax</span>
-          <strong id="taxValue">$0.00</strong>
-        </article>
-        <article class="summary-card summary-card--total">
+        <div class="iphone-summary-compact" aria-label="Estimated total" role="status" aria-live="polite" aria-atomic="true">
           <span>Estimated total</span>
-          <strong id="totalValue">$0.00</strong>
-        </article>
-        <article class="summary-card summary-card--budget">
-          <span>Budget check</span>
-          <strong id="budgetStatus" class="budget-pill" role="status" aria-live="polite">No trip budget set</strong>
-        </article>
+          <strong id="totalValueCompact">$0.00</strong>
+        </div>
+
+        <button id="iphoneSummaryToggle" type="button" class="btn btn--secondary iphone-summary-toggle" aria-controls="iphoneSummaryDetails" aria-expanded="false">
+          Trip summary
+        </button>
+
+        <div id="iphoneSummaryDetails" class="iphone-summary-details">
+          <div class="app-bar__actions">
+            <button id="printBtn" type="button" class="btn btn--secondary">Print</button>
+            <button id="exportListBtn" type="button" class="btn btn--secondary">Export CSV</button>
+            <button id="openSettingsBtnTop" type="button" class="btn btn--primary desktop-only" aria-controls="settingsModal" aria-haspopup="dialog" aria-expanded="false">Settings</button>
+          </div>
+
+          <div class="summary-strip" aria-label="Trip summary" role="status" aria-live="polite" aria-atomic="true">
+            <article class="summary-card">
+              <span>Subtotal</span>
+              <strong id="subtotalValue">$0.00</strong>
+            </article>
+            <article class="summary-card">
+              <span>Tax</span>
+              <strong id="taxValue">$0.00</strong>
+            </article>
+            <article class="summary-card summary-card--total">
+              <span>Estimated total</span>
+              <strong id="totalValue">$0.00</strong>
+            </article>
+            <article class="summary-card summary-card--budget">
+              <span>Budget check</span>
+              <strong id="budgetStatus" class="budget-pill" role="status" aria-live="polite">No trip budget set</strong>
+            </article>
+          </div>
+        </div>
       </div>
     </header>
 
@@ -253,6 +264,13 @@
     </main>
 
     <nav id="bottomNav" class="bottom-nav" aria-label="Primary navigation">
+      <div class="bottom-nav__top" aria-label="Trip total" role="status" aria-live="polite" aria-atomic="true">
+        <div class="bottom-nav__total">
+          <span>Total</span>
+          <strong id="bottomNavTotalValue">$0.00</strong>
+        </div>
+        <button id="bottomNavAddItemBtn" type="button" class="btn btn--primary bottom-nav__add" aria-controls="editorPanel" aria-haspopup="dialog">Add item</button>
+      </div>
       <button type="button" class="nav-btn is-active" data-view-target="list" aria-current="page" aria-controls="listView" aria-label="Open List view">List</button>
       <button type="button" class="nav-btn" data-view-target="catalog" aria-controls="catalogView" aria-label="Open Catalog view">Catalog</button>
       <button type="button" class="nav-btn" data-view-target="import" aria-controls="importView" aria-label="Open Import view">Import</button>
