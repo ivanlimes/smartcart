@@ -56,6 +56,11 @@
   --z-overlay: 30;
   --z-drawer: 40;
   --z-modal: 50;
+  /* iPhone-only layout tokens: future phone work should use these before adding new globals */
+  --iphone-page-inline: 16px;
+  --iphone-bottom-nav-offset: calc(12px + env(safe-area-inset-bottom));
+  --iphone-sticky-total-offset: calc(88px + env(safe-area-inset-bottom));
+  --iphone-main-padding-bottom: calc(160px + env(safe-area-inset-bottom));
 }
 [data-theme="dark"] {
   color-scheme: dark;
@@ -144,12 +149,13 @@ p { color: var(--text-secondary); }
   min-height: 44px;
   border: 1px solid transparent;
   border-radius: 999px;
-  padding-inline: 16px;
+  padding-inline: var(--iphone-page-inline);
   background: var(--surface-strong);
   color: var(--text-primary);
   box-shadow: var(--shadow-sm);
   white-space: nowrap;
 }
+.btn > span { min-width: 0; }
 .btn:hover { transform: translateY(-1px); }
 .btn--primary {
   background: linear-gradient(180deg, color-mix(in srgb, var(--action-primary) 94%, white 6%), var(--action-primary));
@@ -380,7 +386,8 @@ p { color: var(--text-secondary); }
   .list-layout { grid-template-columns: minmax(0,1.35fr) minmax(300px,.9fr); }
 }
 
-@media (max-width: 1023px) {
+/* TABLET / MID-SIZE LAYOUT ONLY — keep separate from iPhone work */
+@media (min-width: 768px) and (max-width: 1023px) {
   .app-shell { display: block; padding-inline: 12px; }
   .sidebar {
     position: sticky; top: 0; z-index: 12; min-height: auto; margin-top: 12px;
@@ -410,50 +417,438 @@ p { color: var(--text-secondary); }
   .desktop-only { display: none; }
 }
 
+/* IPHONE-ONLY LAYOUT SCOPE — future phone work stays in this fence */
 @media (max-width: 767px) {
-  .sidebar { display: none; }
-  .app-shell { padding-inline: 0; }
-  .app-bar {
-    padding: calc(16px + env(safe-area-inset-top)) 16px 16px;
-    position: sticky; top: 0; z-index: 10;
-    background: color-mix(in srgb, var(--paper) 82%, var(--surface-strong) 18%);
+  body.is-iphone-layout .app-shell {
+    display: block;
+    padding-inline: 0;
+  }
+  body.is-iphone-layout .sidebar { display: none; }
+  body.is-iphone-layout .app-bar,
+  body.is-iphone-layout .main-content { padding-inline: var(--iphone-page-inline); }
+  body.is-iphone-layout .app-bar {
+    padding: calc(14px + env(safe-area-inset-top)) var(--iphone-page-inline) 14px;
+    position: sticky;
+    top: 0;
+    z-index: 10;
+    background: color-mix(in srgb, var(--paper) 84%, var(--surface-strong) 16%);
     backdrop-filter: blur(12px);
   }
-  .app-bar__top { align-items: stretch; }
-  .summary-strip { grid-template-columns: repeat(2, minmax(0,1fr)); }
-  .summary-card--total, .summary-card--budget { grid-column: 1 / -1; }
-  .main-content { padding: 16px; padding-block-end: calc(160px + env(safe-area-inset-bottom)); }
-  .desktop-table { display: none; }
-  .mobile-list { display: grid; }
-  .card-item__bottom, .saved-trip-card, .view-header { flex-direction: column; }
-  .toolbar { display: grid; }
-  .quick-add-bar, .review-grid { grid-template-columns: 1fr; }
-  .quick-add-results { grid-template-columns: 1fr; }
-  .bottom-nav {
-    position: fixed; left: 12px; right: 12px; bottom: calc(12px + env(safe-area-inset-bottom));
-    display: grid; grid-template-columns: repeat(3, 1fr); gap: 8px; padding: 8px;
-    background: rgba(255,255,255,.84); border: 1px solid var(--border-muted);
-    border-radius: 24px; box-shadow: var(--shadow-lg); z-index: 16;
+  body.is-iphone-layout .app-bar__top {
+    display: grid;
+    grid-template-columns: 1fr;
+    gap: 12px;
+    align-items: stretch;
   }
-  [data-theme="dark"] .bottom-nav { background: rgba(21,32,45,.88); }
-  .bottom-nav .nav-btn {
-    min-height: 48px; padding-inline: 0; text-align: center; justify-items: center; border-radius: 16px;
+  body.is-iphone-layout .store-panel,
+  body.is-iphone-layout .store-row,
+  body.is-iphone-layout .store-row .input,
+  body.is-iphone-layout .store-row .input--select {
+    width: 100%;
   }
-  .sticky-total-mobile {
-    position: fixed; left: 16px; right: 16px; bottom: calc(88px + env(safe-area-inset-bottom));
-    display: flex; justify-content: space-between; align-items: center; gap: 12px;
-    padding: 12px 12px 12px 16px; border: 1px solid var(--border-muted);
-    border-radius: 999px; background: rgba(255,255,255,.9); box-shadow: var(--shadow-lg); z-index: 15;
+  body.is-iphone-layout .app-bar__actions {
+    width: 100%;
+    display: grid;
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+    gap: 10px;
+    justify-content: stretch;
   }
-  [data-theme="dark"] .sticky-total-mobile { background: rgba(21,32,45,.92); }
-  .sticky-total-mobile__meta { display: grid; gap: 2px; }
-  .sticky-total-mobile__meta span { font-size: var(--text-sm); color: var(--text-secondary); }
-  .sticky-total-mobile__meta strong { font-size: 1.2rem; color: var(--price-accent); }
-  .sticky-total-mobile .btn { min-width: 112px; }
-  .modal { align-items: end; padding: 0; }
-  .modal__panel {
-    width: 100%; max-height: min(90vh, 820px);
-    border-bottom-left-radius: 0; border-bottom-right-radius: 0;
+  body.is-iphone-layout .app-bar__actions > .btn,
+  body.is-iphone-layout .view-header__actions > .btn,
+  body.is-iphone-layout .toolbar > .btn,
+  body.is-iphone-layout .toolbar > .field,
+  body.is-iphone-layout .stack-row > .btn,
+  body.is-iphone-layout .stack-row > .file-btn {
+    width: 100%;
+  }
+  body.is-iphone-layout .app-bar__actions > .btn,
+  body.is-iphone-layout .view-header__actions > .btn,
+  body.is-iphone-layout .stack-row > .btn,
+  body.is-iphone-layout .stack-row > .file-btn,
+  body.is-iphone-layout .toolbar > .btn {
+    min-width: 0;
+    white-space: normal;
+    text-align: center;
+    line-height: 1.2;
+  }
+  body.is-iphone-layout .summary-strip {
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+    gap: 10px;
+  }
+  body.is-iphone-layout .summary-card {
+    min-height: 88px;
+    padding: 14px;
+  }
+  body.is-iphone-layout .summary-card--total,
+  body.is-iphone-layout .summary-card--budget { grid-column: 1 / -1; }
+  body.is-iphone-layout .main-content {
+    padding: 16px var(--iphone-page-inline);
+    padding-block-end: var(--iphone-main-padding-bottom);
+  }
+  body.is-iphone-layout .view-header {
+    display: grid;
+    gap: 12px;
+    margin-block-end: 16px;
+  }
+  body.is-iphone-layout .view-header__actions {
+    width: 100%;
+    display: grid;
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+    gap: 10px;
+    justify-content: stretch;
+  }
+  body.is-iphone-layout .view-header__actions > .btn:first-child {
+    grid-column: 1 / -1;
+  }
+  body.is-iphone-layout .list-layout,
+  body.is-iphone-layout .import-grid,
+  body.is-iphone-layout .quick-add-bar,
+  body.is-iphone-layout .review-grid {
+    grid-template-columns: 1fr;
+  }
+  body.is-iphone-layout .list-layout,
+  body.is-iphone-layout .list-main,
+  body.is-iphone-layout .list-side,
+  body.is-iphone-layout .import-grid,
+  body.is-iphone-layout .review-list,
+  body.is-iphone-layout .saved-trip-list,
+  body.is-iphone-layout .card-list {
+    gap: 14px;
+  }
+  body.is-iphone-layout .panel,
+  body.is-iphone-layout .card-item,
+  body.is-iphone-layout .review-row,
+  body.is-iphone-layout .quick-add-card,
+  body.is-iphone-layout .saved-trip-card,
+  body.is-iphone-layout .empty-state,
+  body.is-iphone-layout .modal__header,
+  body.is-iphone-layout .modal__footer,
+  body.is-iphone-layout .modal__body,
+  body.is-iphone-layout .editor-panel__header,
+  body.is-iphone-layout .editor-form {
+    padding-inline: 16px;
+  }
+  body.is-iphone-layout .panel,
+  body.is-iphone-layout .review-row,
+  body.is-iphone-layout .empty-state,
+  body.is-iphone-layout .quick-add-card,
+  body.is-iphone-layout .card-item,
+  body.is-iphone-layout .saved-trip-card {
+    padding-block: 16px;
+  }
+  body.is-iphone-layout .desktop-only,
+  body.is-iphone-layout .desktop-table { display: none; }
+  body.is-iphone-layout .mobile-list { display: grid; }
+  body.is-iphone-layout .toolbar {
+    display: grid;
+    gap: 12px;
+    margin-block-end: 14px;
+  }
+  body.is-iphone-layout .chip-row {
+    flex-wrap: nowrap;
+    overflow-x: auto;
+    overflow-y: hidden;
+    gap: 10px;
+    margin-inline: calc(var(--iphone-page-inline) * -1);
+    padding-inline: var(--iphone-page-inline);
+    padding-block-end: 4px;
+    scrollbar-width: none;
+  }
+  body.is-iphone-layout .chip-row::-webkit-scrollbar { display: none; }
+  body.is-iphone-layout .filter-chip {
+    flex: 0 0 auto;
+    min-height: 44px;
+    padding-inline: 16px;
+  }
+  body.is-iphone-layout .card-item,
+  body.is-iphone-layout .quick-add-card,
+  body.is-iphone-layout .saved-trip-card {
+    gap: 12px;
+  }
+  body.is-iphone-layout .card-item__top,
+  body.is-iphone-layout .card-item__bottom,
+  body.is-iphone-layout .saved-trip-card,
+  body.is-iphone-layout .view-header {
+    display: grid;
+    gap: 12px;
+  }
+  body.is-iphone-layout .card-item__top > strong,
+  body.is-iphone-layout .quick-add-card__top > strong {
+    justify-self: start;
+    font-size: 1.15rem;
+  }
+  body.is-iphone-layout .card-meta {
+    gap: 8px;
+  }
+  body.is-iphone-layout .badge,
+  body.is-iphone-layout .badge--category {
+    min-height: 32px;
+  }
+  body.is-iphone-layout .qty-stepper {
+    width: 100%;
+    justify-content: space-between;
+    gap: 12px;
+  }
+  body.is-iphone-layout .step-btn {
+    inline-size: 44px;
+    block-size: 44px;
+  }
+  body.is-iphone-layout .stack-row {
+    display: grid;
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+    gap: 10px;
+    width: 100%;
+  }
+  body.is-iphone-layout .quick-add-panel .stack-row,
+  body.is-iphone-layout .saved-trip-card .stack-row,
+  body.is-iphone-layout .import-actions,
+  body.is-iphone-layout .editor-form__actions,
+  body.is-iphone-layout .settings-backup-row,
+  body.is-iphone-layout .empty-state__actions {
+    display: grid;
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+    gap: 10px;
+  }
+  body.is-iphone-layout .import-actions > .btn,
+  body.is-iphone-layout .editor-form__actions > .btn,
+  body.is-iphone-layout .settings-backup-row > .btn,
+  body.is-iphone-layout .settings-backup-row > .file-btn,
+  body.is-iphone-layout .empty-state__actions > .btn {
+    width: 100%;
+  }
+  body.is-iphone-layout .import-actions > .btn:only-child,
+  body.is-iphone-layout .editor-form__actions > .btn:only-child,
+  body.is-iphone-layout .empty-state__actions > .btn:only-child {
+    grid-column: 1 / -1;
+  }
+  body.is-iphone-layout .quick-add-bar {
+    gap: 10px;
+    align-items: stretch;
+  }
+  body.is-iphone-layout .quick-add-results {
+    grid-template-columns: 1fr;
+    gap: 12px;
+  }
+  body.is-iphone-layout .quick-add-card {
+    min-height: 120px;
+    text-align: left;
+  }
+  body.is-iphone-layout .quick-add-card__top,
+  body.is-iphone-layout .quick-add-card__bottom {
+    display: grid;
+    gap: 10px;
+    justify-content: stretch;
+  }
+  body.is-iphone-layout .quick-add-card__bottom {
+    align-items: start;
+  }
+  body.is-iphone-layout .review-toggles {
+    display: grid;
+    grid-template-columns: 1fr;
+    gap: 10px;
+  }
+  body.is-iphone-layout .checkbox-row {
+    min-height: 44px;
+  }
+  body.is-iphone-layout .bottom-nav {
+    position: fixed;
+    left: 10px;
+    right: 10px;
+    bottom: var(--iphone-bottom-nav-offset);
+    display: grid;
+    grid-template-columns: repeat(3, 1fr);
+    gap: 8px;
+    padding: 8px;
+    background: rgba(255,255,255,.9);
+    border: 1px solid var(--border-muted);
+    border-radius: 24px;
+    box-shadow: var(--shadow-lg);
+    z-index: 16;
+  }
+  body.is-iphone-layout [data-theme="dark"] .bottom-nav,
+  body.is-iphone-layout .app-shell[data-theme="dark"] .bottom-nav { background: rgba(21,32,45,.92); }
+  body.is-iphone-layout .bottom-nav .nav-btn {
+    min-height: 56px;
+    padding-inline: 0;
+    text-align: center;
+    justify-items: center;
+    align-content: center;
+    border-radius: 16px;
+  }
+  body.is-iphone-layout .sticky-total-mobile {
+    position: fixed;
+    left: 12px;
+    right: 12px;
+    bottom: var(--iphone-sticky-total-offset);
+    display: grid;
+    grid-template-columns: minmax(0, 1fr) auto;
+    align-items: center;
+    gap: 12px;
+    padding: 12px 12px 12px 16px;
+    border: 1px solid var(--border-muted);
+    border-radius: 999px;
+    background: rgba(255,255,255,.94);
+    box-shadow: var(--shadow-lg);
+    z-index: 15;
+  }
+  body.is-iphone-layout [data-theme="dark"] .sticky-total-mobile,
+  body.is-iphone-layout .app-shell[data-theme="dark"] .sticky-total-mobile { background: rgba(21,32,45,.94); }
+  body.is-iphone-layout .sticky-total-mobile__meta {
+    display: grid;
+    gap: 2px;
+    min-width: 0;
+  }
+  body.is-iphone-layout .sticky-total-mobile__meta span {
+    font-size: var(--text-sm);
+    color: var(--text-secondary);
+  }
+  body.is-iphone-layout .sticky-total-mobile__meta strong {
+    font-size: 1.2rem;
+    color: var(--price-accent);
+  }
+  body.is-iphone-layout .sticky-total-mobile .btn {
+    min-width: 120px;
+  }
+  body.is-iphone-layout .app-bar__top > *,
+  body.is-iphone-layout .app-bar__actions > *,
+  body.is-iphone-layout .summary-strip > *,
+  body.is-iphone-layout .view-header > *,
+  body.is-iphone-layout .view-header__actions > *,
+  body.is-iphone-layout .toolbar > *,
+  body.is-iphone-layout .stack-row > *,
+  body.is-iphone-layout .quick-add-bar > *,
+  body.is-iphone-layout .quick-add-card__top > *,
+  body.is-iphone-layout .quick-add-card__bottom > *,
+  body.is-iphone-layout .card-item__top > *,
+  body.is-iphone-layout .card-item__bottom > *,
+  body.is-iphone-layout .saved-trip-card > *,
+  body.is-iphone-layout .review-grid > *,
+  body.is-iphone-layout .sticky-total-mobile > * {
+    min-width: 0;
+  }
+  body.is-iphone-layout .item-name {
+    display: grid;
+    grid-template-columns: auto minmax(0, 1fr);
+    inline-size: 100%;
+    min-width: 0;
+  }
+  body.is-iphone-layout .quick-add-card__name-wrap,
+  body.is-iphone-layout .card-item__top > div,
+  body.is-iphone-layout .card-item__bottom > div:first-child,
+  body.is-iphone-layout .saved-trip-card > div:first-child,
+  body.is-iphone-layout .sticky-total-mobile__meta,
+  body.is-iphone-layout .summary-card,
+  body.is-iphone-layout .field,
+  body.is-iphone-layout .toolbar .field {
+    min-width: 0;
+  }
+  body.is-iphone-layout .btn,
+  body.is-iphone-layout .nav-btn,
+  body.is-iphone-layout .badge,
+  body.is-iphone-layout .filter-chip,
+  body.is-iphone-layout .muted-inline,
+  body.is-iphone-layout .help-text,
+  body.is-iphone-layout .field > span,
+  body.is-iphone-layout .card-meta > span {
+    white-space: normal;
+    overflow-wrap: anywhere;
+    word-break: break-word;
+  }
+  body.is-iphone-layout .view-header h2,
+  body.is-iphone-layout .view-header p,
+  body.is-iphone-layout .card-item h3,
+  body.is-iphone-layout .quick-add-card__name-wrap strong,
+  body.is-iphone-layout .saved-trip-card strong,
+  body.is-iphone-layout .empty-state strong,
+  body.is-iphone-layout .empty-state p,
+  body.is-iphone-layout .modal__header h3,
+  body.is-iphone-layout .editor-panel__header h3 {
+    overflow-wrap: anywhere;
+    word-break: break-word;
+    hyphens: auto;
+    line-height: 1.28;
+  }
+  body.is-iphone-layout .card-item h3,
+  body.is-iphone-layout .quick-add-card__name-wrap strong,
+  body.is-iphone-layout .saved-trip-card strong {
+    font-size: clamp(1rem, 0.96rem + 0.32vw, 1.12rem);
+  }
+  body.is-iphone-layout .card-meta,
+  body.is-iphone-layout .quick-add-card__bottom,
+  body.is-iphone-layout .saved-trip-card .muted-inline,
+  body.is-iphone-layout .sticky-total-mobile__meta {
+    line-height: 1.35;
+  }
+  body.is-iphone-layout .badge,
+  body.is-iphone-layout .filter-chip {
+    align-items: flex-start;
+  }
+  body.is-iphone-layout .sticky-total-mobile__meta span,
+  body.is-iphone-layout .sticky-total-mobile__meta strong {
+    white-space: normal;
+    overflow-wrap: anywhere;
+  }
+  body.is-iphone-layout .editor-panel {
+    width: 100%;
+    top: auto;
+    height: min(84vh, 720px);
+    border-inline-start: 0;
+    border-block-start: 1px solid var(--border-muted);
+    border-top-left-radius: var(--radius-xl);
+    border-top-right-radius: var(--radius-xl);
+    transform: translateY(100%);
+  }
+  body.is-iphone-layout .editor-panel.is-open { transform: translateY(0); }
+  body.is-iphone-layout .modal {
+    align-items: end;
+    padding: 0;
+  }
+  body.is-iphone-layout .modal__panel {
+    width: 100%;
+    max-height: min(90vh, 820px);
+    border-bottom-left-radius: 0;
+    border-bottom-right-radius: 0;
+  }
+}
+
+@media (max-width: 389px) {
+  body.is-iphone-layout .app-bar__actions,
+  body.is-iphone-layout .view-header__actions,
+  body.is-iphone-layout .stack-row,
+  body.is-iphone-layout .quick-add-panel .stack-row,
+  body.is-iphone-layout .saved-trip-card .stack-row,
+  body.is-iphone-layout .import-actions,
+  body.is-iphone-layout .editor-form__actions,
+  body.is-iphone-layout .settings-backup-row,
+  body.is-iphone-layout .empty-state__actions,
+  body.is-iphone-layout .summary-strip {
+    grid-template-columns: 1fr;
+  }
+  body.is-iphone-layout .view-header__actions > .btn:first-child,
+  body.is-iphone-layout .summary-card--total,
+  body.is-iphone-layout .summary-card--budget {
+    grid-column: auto;
+  }
+  body.is-iphone-layout .sticky-total-mobile {
+    grid-template-columns: 1fr;
+    border-radius: 24px;
+    gap: 10px;
+    padding: 14px;
+  }
+  body.is-iphone-layout .sticky-total-mobile .btn {
+    width: 100%;
+    min-width: 0;
+  }
+  body.is-iphone-layout .bottom-nav {
+    left: 8px;
+    right: 8px;
+    gap: 6px;
+    padding: 6px;
+  }
+  body.is-iphone-layout .bottom-nav .nav-btn {
+    min-height: 52px;
+    font-size: var(--text-sm);
+    line-height: 1.1;
   }
 }
 

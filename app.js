@@ -59,6 +59,9 @@ const state = {
 
 const els = {};
 let lastFocusedBeforeDialog = null;
+const PHONE_LAYOUT_MEDIA = '(max-width: 767px)';
+let phoneLayoutMediaQuery = null;
+
 
 function uid(prefix = 'id') {
   return `${prefix}_${Math.random().toString(36).slice(2, 10)}_${Date.now().toString(36)}`;
@@ -108,38 +111,7 @@ function loadSavedState() {
   const parsed = safeJsonParse(raw, null);
   if (!parsed || typeof parsed !== 'object') return;
 
-  if (Array.isArray(parsed.catalogItems)) {
-    const savedCatalogItems = normalizeSavedCatalogItems(parsed.catalogItems);
-    const mergedCatalog = normalizeSavedCatalogItems(state.catalogItems);
-
-    for (const savedItem of savedCatalogItems) {
-      const matchIndex = mergedCatalog.findIndex((seedItem) => {
-        const sameStore = (seedItem.storeId || 'costco') === (savedItem.storeId || 'costco');
-        const sameCode = seedItem.code && savedItem.code && String(seedItem.code) === String(savedItem.code);
-        const sameName = slugify(seedItem.name) === slugify(savedItem.name);
-        return sameStore && (sameCode || sameName);
-      });
-
-      if (matchIndex >= 0) {
-        mergedCatalog[matchIndex] = {
-          ...mergedCatalog[matchIndex],
-          ...savedItem,
-          sourceMeta: {
-            ...(mergedCatalog[matchIndex].sourceMeta || {}),
-            ...(savedItem.sourceMeta || {}),
-          },
-          priceHistory: Array.isArray(savedItem.priceHistory) && savedItem.priceHistory.length
-            ? savedItem.priceHistory
-            : mergedCatalog[matchIndex].priceHistory,
-        };
-      } else {
-        mergedCatalog.push(savedItem);
-      }
-    }
-
-    state.catalogItems = mergedCatalog;
-  }
-
+  state.catalogItems = Array.isArray(parsed.catalogItems) ? normalizeSavedCatalogItems(parsed.catalogItems) : state.catalogItems;
   state.tripItems = Array.isArray(parsed.tripItems) ? parsed.tripItems : [];
   state.importItems = Array.isArray(parsed.importItems) ? parsed.importItems : [];
   state.savedTrips = Array.isArray(parsed.savedTrips) ? parsed.savedTrips : [];
@@ -363,11 +335,41 @@ function applyTheme() {
   }
 }
 
+function syncPhoneLayoutScope() {
+  const appRoot = els.appRoot || document.getElementById('app');
+  const isIphoneLayout = window.matchMedia(PHONE_LAYOUT_MEDIA).matches;
+
+  if (appRoot) {
+    appRoot.setAttribute('data-layout', isIphoneLayout ? 'iphone' : 'default');
+  }
+
+  document.body.classList.toggle('is-iphone-layout', isIphoneLayout);
+}
+
+function initPhoneLayoutScope() {
+  if (phoneLayoutMediaQuery) return;
+
+  phoneLayoutMediaQuery = window.matchMedia(PHONE_LAYOUT_MEDIA);
+  syncPhoneLayoutScope();
+
+  const onPhoneLayoutChange = () => syncPhoneLayoutScope();
+
+  if (typeof phoneLayoutMediaQuery.addEventListener === 'function') {
+    phoneLayoutMediaQuery.addEventListener('change', onPhoneLayoutChange);
+  } else if (typeof phoneLayoutMediaQuery.addListener === 'function') {
+    phoneLayoutMediaQuery.addListener(onPhoneLayoutChange);
+  }
+
+  window.addEventListener('orientationchange', onPhoneLayoutChange);
+}
+
 function setActiveView(viewName) {
   state.ui.activeView = viewName;
   document.body.dataset.activeView = viewName;
   document.querySelectorAll('.view').forEach((view) => {
-    view.classList.toggle('is-active', view.id === `${viewName}View`);
+    const active = view.id === `${viewName}View`;
+    view.classList.toggle('is-active', active);
+    view.setAttribute('aria-hidden', active ? 'false' : 'true');
   });
   document.querySelectorAll('[data-view-target]').forEach((btn) => {
     const active = btn.dataset.viewTarget === viewName;
@@ -375,6 +377,8 @@ function setActiveView(viewName) {
     btn.setAttribute('aria-current', active ? 'page' : 'false');
   });
   saveState();
+  const label = viewName.charAt(0).toUpperCase() + viewName.slice(1);
+  announce(`Showing ${label} view`);
 }
 
 function renderStoreOptions() {
@@ -498,7 +502,7 @@ function renderQuickAdd() {
   }
 
   els.listQuickResults.innerHTML = matches.map((item) => `
-    <button type="button" class="quick-add-card" data-quick-add-catalog="${item.id}">
+    <button type="button" class="quick-add-card" data-quick-add-catalog="${item.id}" aria-label="Add ${escapeHtmlAttr(item.name)} to the current list for ${escapeHtmlAttr(money(item.defaultPrice))}">
       <span class="quick-add-card__top">
         <span class="item-name">
           <span class="item-emoji" aria-hidden="true">${getItemEmoji(item)}</span>
@@ -507,7 +511,7 @@ function renderQuickAdd() {
             <span class="muted-inline">${escapeHtml(item.brand || activeStoreBrand() || 'Store brand')}</span>
           </span>
         </span>
-        <strong>${money(item.defaultPrice)}</strong>
+        <strong aria-hidden="true">${money(item.defaultPrice)}</strong>
       </span>
       <span class="quick-add-card__bottom">
         ${formatCategoryBadge(item.category)}
@@ -527,20 +531,20 @@ function renderTripView() {
     const selected = state.ui.selectedTripItemId === item.id ? 'is-selected' : '';
     return `
       <tr class="${selected}" data-trip-row="${item.id}">
-        <td><button class="btn btn--ghost js-open-trip" data-item-id="${item.id}">${escapeHtml(formatItemLabel(item))}</button></td>
+        <td><button class="btn btn--ghost js-open-trip" data-item-id="${item.id}" aria-label="Edit ${escapeHtmlAttr(item.name)}">${escapeHtml(formatItemLabel(item))}</button></td>
         <td>${escapeHtml(item.code || '—')}</td>
         <td>${formatCategoryBadge(item.category)}</td>
         <td>
           <div class="qty-stepper">
             <button class="step-btn" data-step-qty="-1" data-item-id="${item.id}" aria-label="Decrease quantity">−</button>
-            <span>${number(item.qty, 1)}</span>
+            <span aria-live="polite" aria-label="Quantity ${number(item.qty, 1)}">${number(item.qty, 1)}</span>
             <button class="step-btn" data-step-qty="1" data-item-id="${item.id}" aria-label="Increase quantity">+</button>
           </div>
         </td>
         <td><input class="input inline-input" type="number" step="0.01" min="0" value="${number(item.price, 0).toFixed(2)}" data-inline-price="${item.id}" aria-label="Edit price for ${escapeHtml(formatItemLabel(item))}"></td>
         <td>${money(calcItemSubtotal(item))}</td>
         <td>
-          <button class="btn btn--secondary js-open-trip" data-item-id="${item.id}">Edit</button>
+          <button class="btn btn--secondary js-open-trip" data-item-id="${item.id}" aria-label="Edit ${escapeHtmlAttr(item.name)}">Edit</button>
         </td>
       </tr>
     `;
@@ -551,6 +555,7 @@ function renderTripView() {
       <div class="card-item__top">
         <div>
           <h3>${escapeHtml(formatItemLabel(item))}</h3>
+          <span class="sr-only">${escapeHtml(item.name)}</span>
           <div class="card-meta">
             ${formatCategoryBadge(item.category)}
             <span>${escapeHtml(item.code || 'No code')}</span>
@@ -563,13 +568,13 @@ function renderTripView() {
           <div class="card-meta"><span>${escapeHtml(item.brand || activeStoreBrand() || '')}</span><span>Unit ${money(item.price)}</span></div>
           <div class="qty-stepper">
             <button class="step-btn" data-step-qty="-1" data-item-id="${item.id}" aria-label="Decrease quantity">−</button>
-            <span>${number(item.qty, 1)}</span>
+            <span aria-live="polite" aria-label="Quantity ${number(item.qty, 1)}">${number(item.qty, 1)}</span>
             <button class="step-btn" data-step-qty="1" data-item-id="${item.id}" aria-label="Increase quantity">+</button>
           </div>
         </div>
         <div class="stack-row">
-          <button class="btn btn--secondary js-open-trip" data-item-id="${item.id}">Edit</button>
-          <button class="btn btn--ghost" data-duplicate-trip="${item.id}">Duplicate</button>
+          <button class="btn btn--secondary js-open-trip" data-item-id="${item.id}" aria-label="Edit ${escapeHtmlAttr(item.name)}">Edit</button>
+          <button class="btn btn--ghost" data-duplicate-trip="${item.id}" aria-label="Duplicate ${escapeHtmlAttr(item.name)}">Duplicate</button>
         </div>
       </div>
     </article>
@@ -585,7 +590,10 @@ function renderCatalogView() {
   els.catalogCategoryFilter.innerHTML = categories.map((category) => `<option value="${category}">${category}</option>`).join('');
   if (categoryFilter) els.catalogCategoryFilter.value = categoryFilter;
   if (els.catalogStoreModeBtn) {
-    els.catalogStoreModeBtn.textContent = state.ui.showAllStoresCatalog ? 'Showing all stores' : `Showing ${getCurrentStore().name} only`;
+    const showingAllStores = state.ui.showAllStoresCatalog;
+    els.catalogStoreModeBtn.textContent = showingAllStores ? 'Showing all stores' : `Showing ${getCurrentStore().name} only`;
+    els.catalogStoreModeBtn.setAttribute('aria-pressed', showingAllStores ? 'true' : 'false');
+    els.catalogStoreModeBtn.setAttribute('aria-label', showingAllStores ? 'Showing catalog items from all stores. Activate to show only the current store.' : `Showing catalog items from ${getCurrentStore().name} only. Activate to show all stores.`);
   }
 
   const visibleItems = byStore(state.catalogItems).filter((item) => {
@@ -599,7 +607,7 @@ function renderCatalogView() {
   els.catalogEmptyState.hidden = hasItems;
   els.catalogCategoryChips.innerHTML = categories.map((category) => {
     const isActive = (els.catalogCategoryFilter.value || 'All categories') === category;
-    return `<button class="filter-chip ${isActive ? 'is-active' : ''}" type="button" data-category-chip="${escapeHtmlAttr(category)}" aria-pressed="${isActive ? 'true' : 'false'}" style="${categoryToneStyle(category)}"><span aria-hidden="true">${getCategoryEmoji(category)}</span><span>${escapeHtml(category)}</span></button>`;
+    return `<button class="filter-chip ${isActive ? 'is-active' : ''}" type="button" data-category-chip="${escapeHtmlAttr(category)}" aria-pressed="${isActive ? 'true' : 'false'}" aria-label="${isActive ? 'Selected' : 'Filter'} category ${escapeHtmlAttr(category)}" style="${categoryToneStyle(category)}"><span aria-hidden="true">${getCategoryEmoji(category)}</span><span>${escapeHtml(category)}</span></button>`;
   }).join('');
   els.catalogTableBody.parentElement.parentElement.hidden = !hasItems;
   els.catalogCardList.hidden = !hasItems;
@@ -615,8 +623,8 @@ function renderCatalogView() {
       <td>${escapeHtml(storeNameById(item.storeId))}</td>
       <td>
         <div class="stack-row">
-          <button class="btn btn--primary" data-add-catalog-to-trip="${item.id}">Add to list</button>
-          <button class="btn btn--ghost" data-edit-catalog="${item.id}">Edit</button>
+          <button class="btn btn--primary" data-add-catalog-to-trip="${item.id}" aria-label="Add ${escapeHtmlAttr(item.name)} to the current list">Add to list</button>
+          <button class="btn btn--ghost" data-edit-catalog="${item.id}" aria-label="Edit saved item ${escapeHtmlAttr(item.name)}">Edit</button>
         </div>
       </td>
     </tr>`;
@@ -641,8 +649,8 @@ function renderCatalogView() {
         <span class="badge">${escapeHtml(storeNameById(item.storeId))}</span>
         <span class="badge">Avg ${money(stats.avg)}</span>
         <div class="stack-row">
-          <button class="btn btn--primary" data-add-catalog-to-trip="${item.id}">Add</button>
-          <button class="btn btn--ghost" data-edit-catalog="${item.id}">Edit</button>
+          <button class="btn btn--primary" data-add-catalog-to-trip="${item.id}" aria-label="Add ${escapeHtmlAttr(item.name)} to the current list">Add</button>
+          <button class="btn btn--ghost" data-edit-catalog="${item.id}" aria-label="Edit saved item ${escapeHtmlAttr(item.name)}">Edit</button>
         </div>
       </div>
     </article>`;
@@ -654,25 +662,25 @@ function renderImportView() {
   els.importEmptyState.hidden = hasItems;
   els.importReviewWrap.hidden = !hasItems;
   els.importReviewList.innerHTML = state.importItems.map((item) => `
-    <article class="review-row">
+    <article class="review-row" aria-label="Imported receipt item review">
       <p class="help-text">Raw: ${escapeHtml(item.rawText)}</p>
       <div class="review-grid">
         <label class="field">
           <span>Name</span>
-          <input class="input" type="text" value="${escapeHtmlAttr(item.correctedName || item.guessedName || '')}" data-import-field="name" data-import-id="${item.id}">
+          <input class="input" type="text" value="${escapeHtmlAttr(item.correctedName || item.guessedName || '')}" data-import-field="name" data-import-id="${item.id}" aria-label="Item name for imported row ${escapeHtmlAttr(item.rawText)}">
         </label>
         <label class="field">
           <span>Code</span>
-          <input class="input" type="text" value="${escapeHtmlAttr(item.correctedCode || item.guessedCode || '')}" data-import-field="code" data-import-id="${item.id}">
+          <input class="input" type="text" value="${escapeHtmlAttr(item.correctedCode || item.guessedCode || '')}" data-import-field="code" data-import-id="${item.id}" aria-label="Item code for imported row ${escapeHtmlAttr(item.rawText)}">
         </label>
         <label class="field">
           <span>Price</span>
-          <input class="input" type="number" step="0.01" min="0" value="${number(item.correctedPrice ?? item.guessedPrice, 0).toFixed(2)}" data-import-field="price" data-import-id="${item.id}">
+          <input class="input" type="number" step="0.01" min="0" value="${number(item.correctedPrice ?? item.guessedPrice, 0).toFixed(2)}" data-import-field="price" data-import-id="${item.id}" aria-label="Item price for imported row ${escapeHtmlAttr(item.rawText)}">
         </label>
       </div>
       <div class="review-toggles">
-        <label class="checkbox-row"><input type="checkbox" data-import-toggle="catalog" data-import-id="${item.id}" ${item.addToCatalog ? 'checked' : ''}> <span>Add to catalog</span></label>
-        <label class="checkbox-row"><input type="checkbox" data-import-toggle="list" data-import-id="${item.id}" ${item.addToList ? 'checked' : ''}> <span>Add to current list</span></label>
+        <label class="checkbox-row"><input type="checkbox" data-import-toggle="catalog" data-import-id="${item.id}" ${item.addToCatalog ? 'checked' : ''} aria-label="Add imported row ${escapeHtmlAttr(item.rawText)} to catalog"> <span>Add to catalog</span></label>
+        <label class="checkbox-row"><input type="checkbox" data-import-toggle="list" data-import-id="${item.id}" ${item.addToList ? 'checked' : ''} aria-label="Add imported row ${escapeHtmlAttr(item.rawText)} to current list"> <span>Add to current list</span></label>
       </div>
     </article>
   `).join('');
@@ -691,10 +699,11 @@ function renderSavedTrips() {
     els.savedTripList.innerHTML = '<div class="saved-trip-empty">No saved future-trip lists yet.</div>';
     return;
   }
-  els.savedTripList.innerHTML = state.savedTrips.map((trip) => `<article class="saved-trip-card"><div><strong>${escapeHtml(trip.name)}</strong><div class="muted-inline">${escapeHtml(storeNameById(trip.storeId))} • ${trip.items.length} items</div></div><div class="stack-row"><button class="btn btn--secondary btn--sm" data-load-trip-template="${trip.id}">Load</button><button class="btn btn--ghost btn--sm" data-delete-trip-template="${trip.id}">Delete</button></div></article>`).join('');
+  els.savedTripList.innerHTML = state.savedTrips.map((trip) => `<article class="saved-trip-card"><div><strong>${escapeHtml(trip.name)}</strong><div class="muted-inline">${escapeHtml(storeNameById(trip.storeId))} • ${trip.items.length} items</div></div><div class="stack-row"><button class="btn btn--secondary btn--sm" data-load-trip-template="${trip.id}" aria-label="Load saved list ${escapeHtmlAttr(trip.name)}">Load</button><button class="btn btn--ghost btn--sm" data-delete-trip-template="${trip.id}" aria-label="Delete saved list ${escapeHtmlAttr(trip.name)}">Delete</button></div></article>`).join('');
 }
 
 function renderAll() {
+  syncPhoneLayoutScope();
   renderStoreOptions();
   renderTripView();
   renderCatalogView();
@@ -722,19 +731,69 @@ function focusFirstIn(container) {
   if (target) target.focus();
 }
 
+function getFocusableElements(container) {
+  return [...container.querySelectorAll('button:not([disabled]), [href], input:not([disabled]), select:not([disabled]), textarea:not([disabled]), [tabindex]:not([tabindex="-1"])')]
+    .filter((element) => !element.hidden && element.offsetParent !== null);
+}
+
+function trapFocusInDialog(event, container) {
+  if (event.key !== 'Tab') return;
+  const focusable = getFocusableElements(container);
+  if (!focusable.length) return;
+  const first = focusable[0];
+  const last = focusable[focusable.length - 1];
+  if (event.shiftKey && document.activeElement === first) {
+    event.preventDefault();
+    last.focus();
+  } else if (!event.shiftKey && document.activeElement === last) {
+    event.preventDefault();
+    first.focus();
+  }
+}
+
+function setSettingsTriggerState(isOpen) {
+  [els.openSettingsBtn, els.openSettingsBtnTop].forEach((button) => {
+    if (button) button.setAttribute('aria-expanded', isOpen ? 'true' : 'false');
+  });
+}
+
+function setBackgroundHidden(isHidden) {
+  [els.sidebarNav, els.appBar, els.mainContent, els.bottomNav, els.stickyTotalBar].forEach((element) => {
+    if (element) element.setAttribute('aria-hidden', isHidden ? 'true' : 'false');
+  });
+}
+
+function syncDialogAccessibility() {
+  setSettingsTriggerState(state.ui.settingsOpen);
+  setBackgroundHidden(state.ui.settingsOpen || state.ui.editorOpen);
+}
+
+function announce(message) {
+  if (!els.appAnnouncer || !message) return;
+  els.appAnnouncer.textContent = '';
+  window.clearTimeout(announce._timer);
+  announce._timer = window.setTimeout(() => {
+    if (els.appAnnouncer) els.appAnnouncer.textContent = message;
+  }, 30);
+}
+
 function openSettings() {
   lastFocusedBeforeDialog = document.activeElement;
   state.ui.settingsOpen = true;
   els.settingsModal.hidden = false;
   openOverlay();
   renderSettings();
+  syncDialogAccessibility();
   focusFirstIn(els.settingsModal);
+  announce('Settings dialog opened');
 }
 
 function closeSettings() {
   state.ui.settingsOpen = false;
   els.settingsModal.hidden = true;
   closeOverlayIfClear();
+  syncDialogAccessibility();
+  announce('Settings dialog closed');
   if (lastFocusedBeforeDialog) lastFocusedBeforeDialog.focus();
 }
 
@@ -744,6 +803,7 @@ function openEditor(type, item = null) {
   els.editorPanel.classList.add('is-open');
   els.editorPanel.setAttribute('aria-hidden', 'false');
   openOverlay();
+  syncDialogAccessibility();
 
   els.editorEntityType.value = type;
   els.editorItemId.value = item?.id || '';
@@ -1233,6 +1293,7 @@ function toast(message) {
   node.className = 'toast';
   node.textContent = message;
   els.toastArea.appendChild(node);
+  announce(message);
   setTimeout(() => node.remove(), 2200);
 }
 
@@ -1509,6 +1570,12 @@ function bindEvents() {
     if (event.key === 'Escape') {
       if (state.ui.editorOpen) closeEditor();
       if (state.ui.settingsOpen) closeSettings();
+      return;
+    }
+    if (state.ui.editorOpen) {
+      trapFocusInDialog(event, els.editorPanel);
+    } else if (state.ui.settingsOpen) {
+      trapFocusInDialog(event, els.settingsModal);
     }
   });
 
@@ -1571,6 +1638,15 @@ function bindEvents() {
 
 function cacheElements() {
   Object.assign(els, {
+    appRoot: document.getElementById('app'),
+    sidebarNav: document.getElementById('sidebarNav'),
+    appBar: document.getElementById('appBar'),
+    mainContent: document.getElementById('mainContent'),
+    bottomNav: document.getElementById('bottomNav'),
+    stickyTotalBar: document.getElementById('stickyTotalBar'),
+    appAnnouncer: document.getElementById('appAnnouncer'),
+    openSettingsBtn: document.getElementById('openSettingsBtn'),
+    openSettingsBtnTop: document.getElementById('openSettingsBtnTop'),
     storeSelect: document.getElementById('storeSelect'),
     subtotalValue: document.getElementById('subtotalValue'),
     taxValue: document.getElementById('taxValue'),
@@ -1649,10 +1725,10 @@ function cacheElements() {
 
 async function bootstrap() {
   cacheElements();
-  const inlineStarterCatalog = window.SMARTCART_STARTER_CATALOG || FALLBACK_CATALOG;
+  initPhoneLayoutScope();
   const [stores, rawCatalog] = await Promise.all([
     loadJson('./data/stores.json', FALLBACK_STORES),
-    loadJson('./data/starter-catalog.json', inlineStarterCatalog),
+    loadJson('./data/starter-catalog.json', FALLBACK_CATALOG),
   ]);
   state.stores = Array.isArray(stores) ? stores : FALLBACK_STORES;
   state.catalogItems = normalizeStarterCatalog(rawCatalog);

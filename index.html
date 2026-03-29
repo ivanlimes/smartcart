@@ -17,7 +17,7 @@
 </head>
 <body>
   <div id="app" class="app-shell" data-theme="system">
-    <aside class="sidebar" aria-label="Primary navigation">
+    <aside id="sidebarNav" class="sidebar" aria-label="Primary navigation">
       <div class="brand">
         <img class="brand__logo" src="assets/icons/icon-192.png" alt="SmartCart logo">
         <div class="brand__text">
@@ -26,27 +26,27 @@
         </div>
       </div>
 
-      <nav class="nav nav--sidebar">
-        <button type="button" class="nav-btn is-active" data-view-target="list" aria-current="page">
+      <nav class="nav nav--sidebar" aria-label="Section navigation">
+        <button type="button" class="nav-btn is-active" data-view-target="list" aria-current="page" aria-controls="listView" aria-label="Open List view">
           <span class="nav-btn__label">List</span>
           <span class="nav-btn__meta">Current trip</span>
         </button>
-        <button type="button" class="nav-btn" data-view-target="catalog">
+        <button type="button" class="nav-btn" data-view-target="catalog" aria-controls="catalogView" aria-label="Open Catalog view">
           <span class="nav-btn__label">Catalog</span>
           <span class="nav-btn__meta">Saved items</span>
         </button>
-        <button type="button" class="nav-btn" data-view-target="import">
+        <button type="button" class="nav-btn" data-view-target="import" aria-controls="importView" aria-label="Open Import view">
           <span class="nav-btn__label">Import</span>
           <span class="nav-btn__meta">Receipt review</span>
         </button>
       </nav>
 
       <div class="sidebar__footer">
-        <button id="openSettingsBtn" type="button" class="btn btn--secondary btn--full">Settings</button>
+        <button id="openSettingsBtn" type="button" class="btn btn--secondary btn--full" aria-controls="settingsModal" aria-haspopup="dialog" aria-expanded="false">Settings</button>
       </div>
     </aside>
 
-    <header class="app-bar">
+    <header id="appBar" class="app-bar">
       <div class="app-bar__top">
         <div class="store-panel">
           <p class="eyebrow">Current store</p>
@@ -59,11 +59,11 @@
         <div class="app-bar__actions">
           <button id="printBtn" type="button" class="btn btn--secondary">Print</button>
           <button id="exportListBtn" type="button" class="btn btn--secondary">Export CSV</button>
-          <button id="openSettingsBtnTop" type="button" class="btn btn--primary desktop-only">Settings</button>
+          <button id="openSettingsBtnTop" type="button" class="btn btn--primary desktop-only" aria-controls="settingsModal" aria-haspopup="dialog" aria-expanded="false">Settings</button>
         </div>
       </div>
 
-      <div class="summary-strip" aria-label="Trip summary">
+      <div class="summary-strip" aria-label="Trip summary" role="status" aria-live="polite" aria-atomic="true">
         <article class="summary-card">
           <span>Subtotal</span>
           <strong id="subtotalValue">$0.00</strong>
@@ -78,12 +78,12 @@
         </article>
         <article class="summary-card summary-card--budget">
           <span>Budget check</span>
-          <strong id="budgetStatus" class="budget-pill">No trip budget set</strong>
+          <strong id="budgetStatus" class="budget-pill" role="status" aria-live="polite">No trip budget set</strong>
         </article>
       </div>
     </header>
 
-    <main class="main-content">
+    <main id="mainContent" class="main-content">
       <section id="listView" class="view is-active" aria-labelledby="listHeading">
         <div class="view-header">
           <div>
@@ -91,7 +91,7 @@
             <p>Build the current trip fast, keep the total honest, and save good lists for later.</p>
           </div>
           <div class="view-header__actions">
-            <button id="openAddItemBtn" type="button" class="btn btn--primary">Add item</button>
+            <button id="openAddItemBtn" type="button" class="btn btn--primary" aria-controls="editorPanel" aria-haspopup="dialog">Add item</button>
             <button id="saveTripTemplateBtn" type="button" class="btn btn--secondary">Save list</button>
             <button id="clearTripBtn" type="button" class="btn btn--ghost">Clear trip</button>
           </div>
@@ -137,14 +137,14 @@
                 </div>
               </div>
               <div class="quick-add-bar">
-                <label class="field field--grow">
+                <label class="field field--grow" for="listQuickSearch">
                   <span>Find item</span>
                   <input id="listQuickSearch" class="input" type="search" placeholder="Type bananas, eggs, spinach, code, or brand" autocomplete="off">
                 </label>
                 <button id="listQuickAddFirstBtn" type="button" class="btn btn--primary">Add first match</button>
               </div>
-              <div id="listQuickResultsMeta" class="muted-inline quick-add-meta">Showing items for the current store.</div>
-              <div id="listQuickResults" class="quick-add-results" aria-live="polite"></div>
+              <div id="listQuickResultsMeta" class="muted-inline quick-add-meta" role="status" aria-live="polite">Showing items for the current store.</div>
+              <div id="listQuickResults" class="quick-add-results" aria-live="polite" aria-label="Quick add results"></div>
             </section>
 
             <section class="panel panel--subtle saved-trip-panel" aria-labelledby="savedTripHeading">
@@ -173,18 +173,18 @@
         </div>
 
         <div class="toolbar">
-          <button id="catalogStoreModeBtn" type="button" class="btn btn--secondary">Showing current store only</button>
-          <label class="field field--grow">
+          <button id="catalogStoreModeBtn" type="button" class="btn btn--secondary" aria-pressed="false" aria-label="Toggle catalog store filter">Showing current store only</button>
+          <label class="field field--grow" for="catalogSearch">
             <span>Search catalog</span>
             <input id="catalogSearch" class="input" type="search" placeholder="Search name, brand, code, or category">
           </label>
-          <label class="field">
+          <label class="field" for="catalogCategoryFilter">
             <span>Category</span>
             <select id="catalogCategoryFilter" class="input input--select"></select>
           </label>
         </div>
 
-        <div id="catalogCategoryChips" class="chip-row" aria-label="Catalog category filters"></div>
+        <div id="catalogCategoryChips" class="chip-row" role="group" aria-label="Catalog category filters"></div>
 
         <div id="catalogEmptyState" class="empty-state" hidden>
           <h3>No catalog items yet</h3>
@@ -221,14 +221,14 @@
         <div class="import-grid">
           <section class="panel">
             <h3>Step 1 · Bring in receipt data</h3>
-            <label class="field">
+            <label class="field" for="receiptImageInput">
               <span>Receipt image</span>
-              <input id="receiptImageInput" class="input" type="file" accept="image/*">
+              <input id="receiptImageInput" class="input" type="file" accept="image/*" aria-describedby="receiptImageNote">
             </label>
             <p id="receiptImageNote" class="help-text">Image upload is only for reference in this review step. For best results, copy the text from the image on your phone or computer and paste it below.</p>
-            <label class="field">
+            <label class="field" for="receiptText">
               <span>Paste receipt text</span>
-              <textarea id="receiptText" class="input textarea" rows="10" placeholder="Paste copied receipt text here"></textarea>
+              <textarea id="receiptText" class="input textarea" rows="10" placeholder="Paste copied receipt text here" aria-describedby="receiptImageNote"></textarea>
             </label>
             <div class="stack-row">
               <button id="parseReceiptBtn" type="button" class="btn btn--primary">Parse receipt</button>
@@ -242,7 +242,7 @@
               <p>No parsed items yet. Paste receipt text, then parse. SmartCart keeps this as a review flow on purpose.</p>
             </div>
             <div id="importReviewWrap" hidden>
-              <div id="importReviewList" class="review-list"></div>
+              <div id="importReviewList" class="review-list" aria-live="polite"></div>
               <div class="stack-row stack-row--end import-actions">
                 <button id="confirmImportBtn" type="button" class="btn btn--primary">Confirm import</button>
               </div>
@@ -252,24 +252,26 @@
       </section>
     </main>
 
-    <nav class="bottom-nav" aria-label="Primary navigation">
-      <button type="button" class="nav-btn is-active" data-view-target="list" aria-current="page">List</button>
-      <button type="button" class="nav-btn" data-view-target="catalog">Catalog</button>
-      <button type="button" class="nav-btn" data-view-target="import">Import</button>
+    <nav id="bottomNav" class="bottom-nav" aria-label="Primary navigation">
+      <button type="button" class="nav-btn is-active" data-view-target="list" aria-current="page" aria-controls="listView" aria-label="Open List view">List</button>
+      <button type="button" class="nav-btn" data-view-target="catalog" aria-controls="catalogView" aria-label="Open Catalog view">Catalog</button>
+      <button type="button" class="nav-btn" data-view-target="import" aria-controls="importView" aria-label="Open Import view">Import</button>
     </nav>
 
-    <div class="sticky-total-mobile" aria-label="Sticky total bar">
+    <div id="stickyTotalBar" class="sticky-total-mobile" aria-label="Sticky total bar" role="status" aria-live="polite" aria-atomic="true">
       <div class="sticky-total-mobile__meta">
         <span>Total</span>
         <strong id="stickyTotalValue">$0.00</strong>
       </div>
-      <button id="stickyAddItemBtn" type="button" class="btn btn--primary">Add item</button>
+      <button id="stickyAddItemBtn" type="button" class="btn btn--primary" aria-controls="editorPanel" aria-haspopup="dialog">Add item</button>
     </div>
   </div>
 
   <div id="overlay" class="overlay" hidden></div>
 
-  <aside id="editorPanel" class="editor-panel" role="dialog" aria-modal="true" aria-hidden="true" aria-labelledby="editorTitle">
+  <div id="appAnnouncer" class="sr-only" aria-live="polite" aria-atomic="true"></div>
+
+  <aside id="editorPanel" class="editor-panel" role="dialog" aria-modal="true" aria-hidden="true" aria-labelledby="editorTitle" aria-describedby="editorModeLabel">
     <div class="editor-panel__header">
       <div>
         <p class="eyebrow" id="editorModeLabel">Editor</p>
@@ -281,31 +283,31 @@
       <input type="hidden" id="editorEntityType">
       <input type="hidden" id="editorItemId">
 
-      <label class="field">
+      <label class="field" for="editorName">
         <span>Name</span>
-        <input id="editorName" class="input" type="text" list="editorItemSuggestions" autocomplete="off" required>
+        <input id="editorName" class="input" type="text" list="editorItemSuggestions" autocomplete="off" required aria-describedby="editorAutocompleteHint">
         <datalist id="editorItemSuggestions"></datalist>
         <small id="editorAutocompleteHint" class="field-note">Start typing a saved item from this store and SmartCart can fill the rest.</small>
       </label>
 
-      <label class="field">
+      <label class="field" for="editorCode">
         <span>Code</span>
         <input id="editorCode" class="input" type="text">
       </label>
 
-      <label class="field">
+      <label class="field" for="editorCategory">
         <span>Category</span>
         <input id="editorCategory" class="input" type="text" placeholder="Produce, Pantry, Frozen">
       </label>
 
-      <label class="field" id="editorQtyField">
+      <label class="field" id="editorQtyField" for="editorQty">
         <span>Quantity</span>
-        <input id="editorQty" class="input" type="number" min="1" step="1" value="1">
+        <input id="editorQty" class="input" type="number" min="1" step="1" value="1" inputmode="numeric">
       </label>
 
-      <label class="field">
+      <label class="field" for="editorPrice">
         <span>Price</span>
-        <input id="editorPrice" class="input" type="number" min="0" step="0.01" value="0">
+        <input id="editorPrice" class="input" type="number" min="0" step="0.01" value="0" inputmode="decimal">
       </label>
 
       <label class="field" id="editorFavoriteField">
@@ -333,22 +335,22 @@
       </div>
 
       <div class="modal__body">
-        <label class="field">
+        <label class="field" for="settingsDefaultStore">
           <span>Default store</span>
           <select id="settingsDefaultStore" class="input input--select"></select>
         </label>
 
-        <label class="field">
+        <label class="field" for="settingsTaxOverride">
           <span>Tax rate override (%)</span>
-          <input id="settingsTaxOverride" class="input" type="number" min="0" step="0.01" placeholder="Optional">
+          <input id="settingsTaxOverride" class="input" type="number" min="0" step="0.01" placeholder="Optional" inputmode="decimal">
         </label>
 
-        <label class="field">
+        <label class="field" for="settingsBudgetTarget">
           <span>Trip budget target ($)</span>
-          <input id="settingsBudgetTarget" class="input" type="number" min="0" step="0.01" placeholder="Optional">
+          <input id="settingsBudgetTarget" class="input" type="number" min="0" step="0.01" placeholder="Optional" inputmode="decimal">
         </label>
 
-        <label class="field">
+        <label class="field" for="settingsTheme">
           <span>Theme</span>
           <select id="settingsTheme" class="input input--select">
             <option value="system">System</option>
@@ -406,9 +408,8 @@
     <p class="print-note" id="printNote"></p>
   </section>
 
-  <div id="toastArea" class="toast-area" aria-live="polite" aria-atomic="true"></div>
+  <div id="toastArea" class="toast-area" aria-live="polite" aria-atomic="true" role="status"></div>
 
-  <script src="data/starter-catalog.inline.js"></script>
   <script src="app.js"></script>
 </body>
 </html>
