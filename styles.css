@@ -1038,6 +1038,21 @@ body.is-iphone-layout.summary-collapsed .iphone-summary-details { display: none;
   *, *::before, *::after { animation: none !important; transition: none !important; scroll-behavior: auto !important; }
 }
 
+
+  body.is-iphone-layout #stickyTotalBar,
+  body.is-iphone-layout .sticky-total-mobile,
+  body.is-iphone-layout .bottom-nav__top,
+  body.is-iphone-layout .bottom-nav__total,
+  body.is-iphone-layout .bottom-nav__add {
+    display: none !important;
+  }
+  body.is-iphone-layout .bottom-nav {
+    grid-template-rows: auto;
+  }
+  body.is-iphone-layout .bottom-nav__tabs {
+    padding-top: 0;
+  }
+
 @media print {
   @page { size: auto; margin: .55in; }
   html, body { background: #fff !important; color: #000 !important; font-size: 12pt; }

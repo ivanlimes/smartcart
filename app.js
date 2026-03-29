@@ -416,8 +416,7 @@ function renderSummary() {
   els.taxValue.textContent = money(tax);
   els.totalValue.textContent = money(total);
   if (els.totalValueCompact) els.totalValueCompact.textContent = money(total);
-  els.stickyTotalValue.textContent = money(total);
-  if (els.bottomNavTotalValue) els.bottomNavTotalValue.textContent = money(total);
+  if (els.stickyTotalValue) els.stickyTotalValue.textContent = money(total);
   if (els.budgetStatus) {
     if (remaining === null) {
       els.budgetStatus.textContent = 'No trip budget set';
@@ -782,7 +781,7 @@ function setSettingsTriggerState(isOpen) {
 }
 
 function setBackgroundHidden(isHidden) {
-  [els.sidebarNav, els.appBar, els.mainContent, els.bottomNav, els.stickyTotalBar].forEach((element) => {
+  [els.sidebarNav, els.appBar, els.mainContent, els.bottomNav, els.stickyTotalBar].filter(Boolean).forEach((element) => {
     if (element) element.setAttribute('aria-hidden', isHidden ? 'true' : 'false');
   });
 }
